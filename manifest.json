@@ -1,0 +1,27 @@
+{
+  "name": "רואים קצב — הדמיית נגינה בזמן אמת",
+  "short_name": "רואים קצב",
+  "description": "תשמע שיר, תבחר כלי, ותראה בדיוק איך מנגנים אותו בזמן אמת.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "he",
+  "background_color": "#0b0e1a",
+  "theme_color": "#0b0e1a",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

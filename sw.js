@@ -1,9 +1,11 @@
-const CACHE_NAME = 'instrument-viz-v2';
+const CACHE_NAME = 'instrument-viz-v3';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './analyzer.js',
+  './analyzer-worker.js',
   './manifest.json',
   './demo-beat.wav',
   './icon-192.png',

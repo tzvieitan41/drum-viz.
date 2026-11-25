@@ -1,14 +1,12 @@
 (() => {
   'use strict';
 
-  // Register Service Worker only on HTTP(S)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     });
   }
 
-  // DOM Elements
   const screenPicker = document.getElementById('screen-picker');
   const screenStage = document.getElementById('screen-stage');
   const pickDrumsBtn = document.getElementById('pick-drums');
@@ -35,24 +33,24 @@
   const trackTitle = document.getElementById('track-title');
   const trackTime = document.getElementById('track-time');
   const seekSlider = document.getElementById('seek-slider');
-
-  const meterKick = document.getElementById('meter-kick');
-  const meterSnare = document.getElementById('meter-snare');
-  const meterHat = document.getElementById('meter-hat');
   const toastEl = document.getElementById('toast');
 
-  // SVG Drum Pieces
   const svgPieces = {
     kick: document.getElementById('drum-kick'),
     kickBeater: document.getElementById('kick-beater'),
     snare: document.getElementById('drum-snare'),
     hihat: document.getElementById('drum-hihat'),
     hihatTop: document.getElementById('hihat-top'),
+    hihatFoot: document.getElementById('hihat-foot'),
     crash: document.getElementById('drum-crash'),
-    tom1: document.getElementById('drum-tom1'),
-    tom2: document.getElementById('drum-tom2'),
+    crash2: document.getElementById('drum-crash2'),
+    ride: document.getElementById('drum-ride'),
+    rideBell: document.getElementById('ride-bell'),
+    tomHigh: document.getElementById('drum-tom-high'),
+    tomMid: document.getElementById('drum-tom-mid'),
+    tomFloor: document.getElementById('drum-tom-floor'),
     drummer: document.getElementById('drummer-body'),
-    fxLayer: document.getElementById('fx-layer'),
+    fxLayer: document.getElementById('fx-layer')
   };
 
   const stickEls = {
@@ -61,36 +59,43 @@
       stick: document.getElementById('left-stick'),
       hand: document.getElementById('left-hand'),
       tip: document.getElementById('left-tip'),
-      shoulder: { x: 168, y: 98 },
-      home: { x: 108, y: 152 },
+      shoulder: { x: 164, y: 78 },
+      home: { x: 96, y: 160 }
     },
     right: {
       forearm: document.getElementById('right-forearm'),
       stick: document.getElementById('right-stick'),
       hand: document.getElementById('right-hand'),
       tip: document.getElementById('right-tip'),
-      shoulder: { x: 242, y: 98 },
-      home: { x: 322, y: 82 },
-    },
+      shoulder: { x: 236, y: 78 },
+      home: { x: 340, y: 96 }
+    }
   };
 
   const DRUM_META = {
-    kick: { label: 'בס', color: '#ff6b4a', x: 205, y: 212, stick: null },
-    snare: { label: 'סנר', color: '#ffd166', x: 104, y: 176, stick: 'left' },
-    hihat: { label: 'היי־האט', color: '#4ecdc4', x: 330, y: 99, stick: 'right' },
-    crash: { label: 'קראש', color: '#ffe58f', x: 74, y: 72, stick: 'left' },
-    tom1: { label: 'טם־טם', color: '#4ecdc4', x: 158, y: 118, stick: 'left' },
-    tom2: { label: 'פלור טם', color: '#6a93ff', x: 294, y: 172, stick: 'right' },
+    kick: { label: 'בס', color: '#ff6b4a', x: 188, y: 214, stick: null, vis: 'kick', meter: 'meter-kick' },
+    snare: { label: 'סנר', color: '#ffd166', x: 92, y: 170, stick: 'left', vis: 'snare', meter: 'meter-snare' },
+    hatClosed: { label: 'היי-האט סגור', color: '#4ecdc4', x: 358, y: 112, stick: 'right', vis: 'hihat', meter: 'meter-hat-closed', hat: 'closed' },
+    hatOpen: { label: 'היי-האט פתוח', color: '#9af7ef', x: 358, y: 100, stick: 'right', vis: 'hihat', meter: 'meter-hat-open', hat: 'open' },
+    tomHigh: { label: 'טום גבוה', color: '#4ecdc4', x: 164, y: 104, stick: 'left', vis: 'tomHigh', meter: 'meter-tom-high' },
+    tomMid: { label: 'טום אמצעי', color: '#ffb15e', x: 222, y: 118, stick: 'right', vis: 'tomMid', meter: 'meter-tom-mid' },
+    tomFloor: { label: 'טום רצפה', color: '#6a93ff', x: 300, y: 170, stick: 'right', vis: 'tomFloor', meter: 'meter-tom-floor' },
+    ride: { label: 'רייד', color: '#ffe58f', x: 274, y: 50, stick: 'right', vis: 'ride', meter: 'meter-ride' },
+    crash: { label: 'קראש', color: '#ffd166', x: 50, y: 74, stick: 'left', vis: 'crash', meter: 'meter-crash' },
+    crash2: { label: 'קראש 2', color: '#ff9f6b', x: 118, y: 54, stick: 'left', vis: 'crash2', meter: 'meter-crash2' }
   };
 
-  // App State
+  const meterEls = {};
+  Object.keys(DRUM_META).forEach((name) => {
+    meterEls[name] = document.getElementById(DRUM_META[name].meter);
+  });
+
   let audioCtx = null;
   let analyser = null;
   let gainNode = null;
-  let mode = 'idle'; // 'idle' | 'demo' | 'file' | 'mic'
+  let mode = 'idle';
   let sensitivity = 1.0;
 
-  // Buffer playback state (demo / file)
   let currentBuffer = null;
   let bufferSource = null;
   let isPlaying = false;
@@ -99,63 +104,67 @@
   let pauseOffset = 0;
   let activeTitle = '';
 
-  // Mic state
   let micStream = null;
   let micSource = null;
 
-  // Animation & Hit state
   const drumState = {
-    kick: 0,
-    snare: 0,
-    hihat: 0,
-    crash: 0,
-    tom1: 0,
-    tom2: 0,
+    kick: 0, snare: 0, hihat: 0, crash: 0, crash2: 0, ride: 0, tomHigh: 0, tomMid: 0, tomFloor: 0
   };
+  const meterLevel = {};
+  Object.keys(DRUM_META).forEach((name) => { meterLevel[name] = 0; });
   const stickAnim = {
-    left: { x: 108, y: 152, targetX: 104, targetY: 176, timer: 0 },
-    right: { x: 322, y: 82, targetX: 330, targetY: 99, timer: 0 },
+    left: { x: 96, y: 160, targetX: 92, targetY: 170, timer: 0 },
+    right: { x: 340, y: 96, targetX: 358, targetY: 112, timer: 0 }
   };
-  let tomToggle = false;
+  let hatOpenAmount = 0;
+  let hatOpenTarget = 0;
   let hitCount = 0;
   let lastHudPop = 0;
   let toastTimer = null;
   let rafId = null;
   let lastFrameMs = performance.now();
 
-  // Debug / Verification log
+  const LEAD = 0.04;
+  let analysisToken = 0;
+  let candidates = [];
+  let activeHits = [];
+  let hitCursor = 0;
+  let lastPlayhead = 0;
+  let useTimeline = false;
+
   const hitLog = [];
   window.__DRUM_DEBUG__ = {
-    getHitLog: () => hitLog,
+    getHitLog: () => hitLog.slice(),
     getHitCount: () => hitCount,
     getMode: () => mode,
     isPlaying: () => isPlaying,
-    triggerTestHit: (d) => triggerDrum(d, 1.0),
+    getCandidates: () => candidates.slice(),
+    getActiveHits: () => activeHits.slice(),
+    triggerTestHit: (d) => triggerDrum(d, 1)
   };
 
-  // DSP Buffers
   let freqBytes = null;
   let mag = null;
   let prevMag = null;
-  const HISTORY_LEN = 24;
-  const fluxHist = {
+  const HISTORY_LEN = 28;
+  const liveFlux = {
     kick: new Float32Array(HISTORY_LEN),
     snare: new Float32Array(HISTORY_LEN),
     tom: new Float32Array(HISTORY_LEN),
     hat: new Float32Array(HISTORY_LEN),
+    ride: new Float32Array(HISTORY_LEN)
   };
   let histIdx = 0;
   let histFilled = 0;
-  const prevBandFlux = { kick: 0, snare: 0, tom: 0, hat: 0 };
-  const lastHitAt = { kick: -1e9, snare: -1e9, tom: -1e9, hihat: -1e9, crash: -1e9 };
+  const prevBandFlux = { kick: 0, snare: 0, tom: 0, hat: 0, ride: 0 };
+  const lastHitAt = {};
+  Object.keys(DRUM_META).forEach((name) => { lastHitAt[name] = -1e9; });
 
   function showToast(msg, ms = 3200) {
     toastEl.textContent = msg;
     toastEl.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toastEl.hidden = true;
-    }, ms);
+    toastTimer = setTimeout(() => { toastEl.hidden = true; }, ms);
   }
 
   function setStatus(text, live = false) {
@@ -170,7 +179,6 @@
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   }
 
-  // Navigation
   pickDrumsBtn.addEventListener('click', () => {
     clearTimeout(toastTimer);
     toastEl.hidden = true;
@@ -206,66 +214,77 @@
   });
 
   sensitivitySlider.addEventListener('input', () => {
-    sensitivity = parseFloat(sensitivitySlider.value) || 1.0;
+    sensitivity = parseFloat(sensitivitySlider.value) || 1;
     sensitivityVal.textContent = `${sensitivity.toFixed(1)}×`;
+    if (useTimeline && window.DrumAnalyzer) {
+      activeHits = window.DrumAnalyzer.selectHits(candidates, sensitivity);
+      syncCursor(playbackTime());
+    }
   });
 
-  // AudioContext setup (must be called inside user gesture for iOS Safari)
   function ensureAudioCtx() {
     if (!audioCtx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       audioCtx = new Ctx();
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.0;
+      analyser.smoothingTimeConstant = 0;
       analyser.minDecibels = -85;
       analyser.maxDecibels = -10;
-
       gainNode = audioCtx.createGain();
-      gainNode.gain.value = 1.0;
+      gainNode.gain.value = 1;
       gainNode.connect(analyser);
       analyser.connect(audioCtx.destination);
-
       const bins = analyser.frequencyBinCount;
       freqBytes = new Uint8Array(bins);
       mag = new Float32Array(bins);
       prevMag = new Float32Array(bins);
     }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
-    }
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
     return audioCtx;
   }
 
   function decodeAudioPromise(ctx, arrayBuf) {
     return new Promise((resolve, reject) => {
-      const res = ctx.decodeAudioData(arrayBuf, resolve, reject);
-      if (res && typeof res.then === 'function') {
-        res.then(resolve, reject);
-      }
+      const res = ctx.decodeAudioData(arrayBuf.slice(0), resolve, reject);
+      if (res && typeof res.then === 'function') res.then(resolve, reject);
     });
+  }
+
+  function mixdown(buffer) {
+    const n = buffer.length;
+    const ch = buffer.numberOfChannels;
+    const out = new Float32Array(n);
+    for (let c = 0; c < ch; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < n; i++) out[i] += data[i];
+    }
+    const inv = 1 / Math.max(1, ch);
+    for (let i = 0; i < n; i++) out[i] *= inv;
+    return out;
   }
 
   function resetDSP() {
     if (prevMag) prevMag.fill(0);
-    Object.values(fluxHist).forEach((arr) => arr.fill(0));
+    Object.keys(liveFlux).forEach((k) => liveFlux[k].fill(0));
     histIdx = 0;
     histFilled = 0;
-    prevBandFlux.kick = 0;
-    prevBandFlux.snare = 0;
-    prevBandFlux.tom = 0;
-    prevBandFlux.hat = 0;
+    Object.keys(prevBandFlux).forEach((k) => { prevBandFlux[k] = 0; });
+    Object.keys(lastHitAt).forEach((k) => { lastHitAt[k] = -1e9; });
+  }
+
+  function resetMeters() {
+    Object.keys(meterEls).forEach((name) => {
+      meterLevel[name] = 0;
+      if (meterEls[name]) meterEls[name].style.width = '0%';
+    });
   }
 
   function stopBufferPlayback() {
     if (bufferSource) {
       bufferSource.onended = null;
-      try {
-        bufferSource.stop();
-      } catch (_) {}
-      try {
-        bufferSource.disconnect();
-      } catch (_) {}
+      try { bufferSource.stop(); } catch (_) {}
+      try { bufferSource.disconnect(); } catch (_) {}
       bufferSource = null;
     }
     isPlaying = false;
@@ -273,9 +292,7 @@
 
   function stopMic() {
     if (micSource) {
-      try {
-        micSource.disconnect();
-      } catch (_) {}
+      try { micSource.disconnect(); } catch (_) {}
       micSource = null;
     }
     if (micStream) {
@@ -287,32 +304,66 @@
   }
 
   function stopAllAudio() {
+    analysisToken += 1;
     stopBufferPlayback();
     stopMic();
     currentBuffer = null;
     pauseOffset = 0;
     mode = 'idle';
+    useTimeline = false;
+    candidates = [];
+    activeHits = [];
+    hitCursor = 0;
     playerBar.hidden = true;
-    meterKick.style.width = '0%';
-    meterSnare.style.width = '0%';
-    meterHat.style.width = '0%';
+    resetMeters();
     setStatus('מוכן — בחר מקור שמע', false);
+  }
+
+  function playbackTime() {
+    if (!currentBuffer || !audioCtx) return pauseOffset || 0;
+    const dur = currentBuffer.duration || 1;
+    if (!isPlaying) return Math.max(0, Math.min(dur, pauseOffset || 0));
+    let elapsed = audioCtx.currentTime - startCtxTime;
+    if (isLooping) elapsed = ((elapsed % dur) + dur) % dur;
+    else elapsed = Math.max(0, Math.min(dur, elapsed));
+    return elapsed;
+  }
+
+  function syncCursor(time) {
+    const limit = time + LEAD;
+    hitCursor = 0;
+    while (hitCursor < activeHits.length && activeHits[hitCursor].time < limit - 0.06) hitCursor += 1;
+    lastPlayhead = time;
+  }
+
+  function fireDueHits(playhead) {
+    if (!useTimeline) return;
+    if (isLooping && playhead + 0.25 < lastPlayhead) {
+      hitCursor = 0;
+    }
+    lastPlayhead = playhead;
+    const limit = playhead + LEAD;
+    while (hitCursor < activeHits.length && activeHits[hitCursor].time <= limit) {
+      const hit = activeHits[hitCursor];
+      hitCursor += 1;
+      if (limit - hit.time > 0.09) continue;
+      const shown = Math.max(0.4, Math.min(1, hit.strength / 2.4));
+      triggerDrum(hit.piece, shown, hit.time);
+    }
   }
 
   function startBufferFrom(offsetSec) {
     if (!currentBuffer || !audioCtx) return;
     stopBufferPlayback();
-
     const src = audioCtx.createBufferSource();
     src.buffer = currentBuffer;
     src.loop = isLooping;
     src.connect(gainNode);
-
     const dur = currentBuffer.duration || 1;
-    const clamped = Math.max(0, Math.min(offsetSec, dur - 0.01));
+    const clamped = Math.max(0, Math.min(offsetSec, Math.max(0, dur - 0.01)));
     pauseOffset = clamped;
     startCtxTime = audioCtx.currentTime - clamped;
-
+    syncCursor(clamped);
     src.onended = () => {
       if (bufferSource === src && !isLooping) {
         isPlaying = false;
@@ -321,7 +372,6 @@
         setStatus('השיר הסתיים — לחץ נגן שוב', false);
       }
     };
-
     src.start(0, clamped);
     bufferSource = src;
     isPlaying = true;
@@ -332,32 +382,102 @@
     setStatus(mode === 'demo' ? 'מנגן מקצב דמו' : `מנגן: ${activeTitle}`, true);
   }
 
-  // 1. Built-in Demo Beat
+  function runAnalysis(samples, sampleRate) {
+    const token = ++analysisToken;
+    setStatus('מנתח את השיר…', false);
+    return new Promise((resolve) => {
+      const finish = (list) => {
+        if (token !== analysisToken) return;
+        resolve(list || []);
+      };
+      const fallback = () => {
+        try {
+          const list = window.DrumAnalyzer.analyze(samples, sampleRate, (progress) => {
+            if (token === analysisToken) {
+              setStatus(`מנתח את השיר… ${Math.round(progress * 100)}%`, false);
+            }
+          });
+          finish(list);
+        } catch (err) {
+          console.error(err);
+          finish([]);
+        }
+      };
+      let worker;
+      try {
+        worker = new Worker('./analyzer-worker.js');
+      } catch (_) {
+        fallback();
+        return;
+      }
+      const copy = new Float32Array(samples);
+      const timer = setTimeout(() => {
+        try { worker.terminate(); } catch (_) {}
+        fallback();
+      }, 25000);
+      worker.onmessage = (event) => {
+        const data = event.data || {};
+        if (data.id !== token) return;
+        if (data.type === 'progress') {
+          setStatus(`מנתח את השיר… ${Math.round((data.progress || 0) * 100)}%`, false);
+        } else if (data.type === 'done') {
+          clearTimeout(timer);
+          try { worker.terminate(); } catch (_) {}
+          finish(data.candidates || []);
+        } else if (data.type === 'error') {
+          clearTimeout(timer);
+          try { worker.terminate(); } catch (_) {}
+          fallback();
+        }
+      };
+      worker.onerror = () => {
+        clearTimeout(timer);
+        try { worker.terminate(); } catch (_) {}
+        fallback();
+      };
+      try {
+        worker.postMessage({ id: token, samples: copy, sampleRate: sampleRate }, [copy.buffer]);
+      } catch (_) {
+        clearTimeout(timer);
+        try { worker.terminate(); } catch (__) {}
+        fallback();
+      }
+    });
+  }
+
+  async function beginTimeline(buffer, title, looping) {
+    currentBuffer = buffer;
+    mode = looping ? 'demo' : 'file';
+    isLooping = looping;
+    activeTitle = title;
+    hitCount = 0;
+    hitCounterEl.textContent = 'מכות: 0';
+    hitLog.length = 0;
+    useTimeline = true;
+    const mono = mixdown(buffer);
+    candidates = await runAnalysis(mono, buffer.sampleRate);
+    if (!currentBuffer || currentBuffer !== buffer) return;
+    activeHits = window.DrumAnalyzer.selectHits(candidates, sensitivity);
+    useTimeline = activeHits.length > 0 || candidates.length > 0;
+    startBufferFrom(0);
+    startLoop();
+  }
+
   btnDemo.addEventListener('click', async () => {
     const ctx = ensureAudioCtx();
     stopMic();
     stopBufferPlayback();
     resetDSP();
-
     if (mode === 'demo' && currentBuffer && !isPlaying) {
       startBufferFrom(pauseOffset);
       return;
     }
-
     setStatus('טוען מקצב דמו…', false);
     try {
       const resp = await fetch('./demo-beat.wav');
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const ab = await resp.arrayBuffer();
-      currentBuffer = await decodeAudioPromise(ctx, ab);
-      mode = 'demo';
-      isLooping = true;
-      activeTitle = 'מקצב דמו (115 BPM)';
-      hitCount = 0;
-      hitCounterEl.textContent = 'מכות: 0';
-      hitLog.length = 0;
-      startBufferFrom(0);
-      startLoop();
+      const audioBuffer = await decodeAudioPromise(ctx, await resp.arrayBuffer());
+      await beginTimeline(audioBuffer, 'מקצב דמו (115 BPM)', true);
     } catch (err) {
       console.error(err);
       showToast('לא הצלחתי לטעון את קובץ הדמו');
@@ -365,28 +485,18 @@
     }
   });
 
-  // 2. Pick Audio File from Phone
-  fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
+  fileInput.addEventListener('change', async (event) => {
+    const file = event.target.files && event.target.files[0];
     if (!file) return;
-
     const ctx = ensureAudioCtx();
     stopMic();
     stopBufferPlayback();
     resetDSP();
     setStatus('מפענח קובץ שמע…', false);
-
     try {
-      const ab = await file.arrayBuffer();
-      currentBuffer = await decodeAudioPromise(ctx, ab);
-      mode = 'file';
-      isLooping = false;
-      activeTitle = file.name.replace(/\.[^/.]+$/, '');
-      hitCount = 0;
-      hitCounterEl.textContent = 'מכות: 0';
-      hitLog.length = 0;
-      startBufferFrom(0);
-      startLoop();
+      const audioBuffer = await decodeAudioPromise(ctx, await file.arrayBuffer());
+      const title = file.name.replace(/\.[^/.]+$/, '');
+      await beginTimeline(audioBuffer, title, false);
     } catch (err) {
       console.error(err);
       showToast('הפורמט לא נתמך בדפדפן. נסה קובץ MP3, M4A או WAV.');
@@ -396,45 +506,37 @@
     }
   });
 
-  // 3. Listen via Microphone
   btnMic.addEventListener('click', async () => {
     if (mode === 'mic') {
       stopAllAudio();
       return;
     }
-
     const ctx = ensureAudioCtx();
     stopBufferPlayback();
     currentBuffer = null;
+    useTimeline = false;
+    candidates = [];
+    activeHits = [];
     playerBar.hidden = true;
     resetDSP();
-
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('האזנה למיקרופון באייפון דורשת חיבור מאובטח (HTTPS). אפשר לנסות בינתיים בדמו או בקובץ שמע.');
       setStatus('מיקרופון דורש HTTPS', false);
       return;
     }
-
     setStatus('מבקש גישה למיקרופון…', false);
     try {
       let stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-          },
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
         });
       } catch (_) {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
-
       micStream = stream;
       micSource = ctx.createMediaStreamSource(stream);
-      // Connect mic ONLY to analyser (never to destination to avoid feedback)
       micSource.connect(analyser);
-
       mode = 'mic';
       hitCount = 0;
       hitCounterEl.textContent = 'מכות: 0';
@@ -450,7 +552,6 @@
     }
   });
 
-  // Player Controls
   btnPlayPause.addEventListener('click', () => {
     if (!currentBuffer || !audioCtx) return;
     ensureAudioCtx();
@@ -465,22 +566,19 @@
     }
   });
 
-  btnStop.addEventListener('click', () => {
-    stopAllAudio();
-  });
+  btnStop.addEventListener('click', () => stopAllAudio());
 
   seekSlider.addEventListener('input', () => {
     if (!currentBuffer) return;
     const target = parseFloat(seekSlider.value) || 0;
-    if (isPlaying) {
-      startBufferFrom(target);
-    } else {
+    if (isPlaying) startBufferFrom(target);
+    else {
       pauseOffset = target;
+      syncCursor(target);
       trackTime.textContent = `${formatTime(target)} / ${formatTime(currentBuffer.duration)}`;
     }
   });
 
-  // --- DSP: Spectral Flux + Adaptive Threshold ---
   function hzToBin(hz) {
     if (!audioCtx || !analyser) return 1;
     const nyquist = audioCtx.sampleRate / 2;
@@ -491,14 +589,17 @@
   function bandStats(binStart, binEnd) {
     let flux = 0;
     let energy = 0;
+    let peak = 0;
+    let peakBin = binStart;
     const count = Math.max(1, binEnd - binStart + 1);
     for (let i = binStart; i <= binEnd; i++) {
       const m = mag[i];
       energy += m;
+      if (m > peak) { peak = m; peakBin = i; }
       const diff = m - prevMag[i];
       if (diff > 0) flux += diff;
     }
-    return { flux: flux / count, energy: energy / count };
+    return { flux: flux / count, energy: energy / count, peak, peakBin };
   }
 
   function medianAndMad(arr, len) {
@@ -508,213 +609,157 @@
     tmp.sort((a, b) => a - b);
     const med = tmp[Math.floor(len / 2)];
     let devSum = 0;
-    for (let i = 0; i < len; i++) devSum += Math.abs(tmp[i] - med);
-    return { med, mad: devSum / len };
+    for (let i = 0; i < tmp.length; i++) devSum += Math.abs(tmp[i] - med);
+    return { med, mad: devSum / tmp.length };
   }
 
-  function analyzeAudio(nowMs) {
-    if (!analyser || !freqBytes) return;
-    const active = mode === 'mic' || ((mode === 'demo' || mode === 'file') && isPlaying);
-    if (!active) return;
-
+  function analyzeMic(nowMs) {
+    if (!analyser || !freqBytes || mode !== 'mic') return;
     analyser.getByteFrequencyData(freqBytes);
     const n = freqBytes.length;
     for (let i = 0; i < n; i++) {
       const v = freqBytes[i] / 255;
-      mag[i] = v * Math.sqrt(v); // ^1.5 emphasis on transients
+      mag[i] = v * Math.sqrt(v);
     }
+    const kick = bandStats(hzToBin(35), hzToBin(120));
+    const floor = bandStats(hzToBin(90), hzToBin(155));
+    const mid = bandStats(hzToBin(155), hzToBin(245));
+    const high = bandStats(hzToBin(235), hzToBin(470));
+    const wire = bandStats(hzToBin(1400), hzToBin(5200));
+    const ride = bandStats(hzToBin(3000), hzToBin(7600));
+    const hat = bandStats(hzToBin(6800), hzToBin(12000));
+    const nyquist = audioCtx.sampleRate / 2;
+    const peakHz = (high.peak > mid.peak && high.peak > floor.peak ? high.peakBin : (mid.peak > floor.peak ? mid.peakBin : floor.peakBin)) / mag.length * nyquist;
 
-    const kick = bandStats(hzToBin(38), hzToBin(125));
-    const tom = bandStats(hzToBin(130), hzToBin(250));
-    const snareBody = bandStats(hzToBin(170), hzToBin(380));
-    const snareWire = bandStats(hzToBin(1400), hzToBin(4600));
-    const shimmer = bandStats(hzToBin(3400), hzToBin(6400));
-    const hihat = bandStats(hzToBin(6200), hzToBin(13500));
+    meterLevel.kick = Math.max(meterLevel.kick * 0.8, Math.min(1, kick.energy * 2.2));
+    meterLevel.snare = Math.max(meterLevel.snare * 0.8, Math.min(1, wire.energy * 2.4));
+    meterLevel.hatClosed = Math.max(meterLevel.hatClosed * 0.75, Math.min(1, hat.energy * 2.6));
+    meterLevel.ride = Math.max(meterLevel.ride * 0.8, Math.min(1, ride.energy * 2.2));
+    meterLevel.tomHigh = Math.max(meterLevel.tomHigh * 0.8, Math.min(1, high.energy * 2.2));
+    meterLevel.tomMid = Math.max(meterLevel.tomMid * 0.8, Math.min(1, mid.energy * 2.2));
+    meterLevel.tomFloor = Math.max(meterLevel.tomFloor * 0.8, Math.min(1, floor.energy * 2.2));
 
-    const snareFlux = snareBody.flux * 0.42 + snareWire.flux * 0.78;
-
-    // Update live meters (visual feedback even between hits)
-    meterKick.style.width = `${Math.min(100, Math.round(kick.energy * 165))}%`;
-    meterSnare.style.width = `${Math.min(100, Math.round((snareWire.energy * 1.4 + tom.energy * 0.6) * 145))}%`;
-    meterHat.style.width = `${Math.min(100, Math.round(hihat.energy * 230))}%`;
-
-    const len = histFilled;
     const s = sensitivity;
-
-    const kStats = medianAndMad(fluxHist.kick, len);
-    const sStats = medianAndMad(fluxHist.snare, len);
-    const tStats = medianAndMad(fluxHist.tom, len);
-    const hStats = medianAndMad(fluxHist.hat, len);
-
-    const kThresh = Math.max(0.028 / s, kStats.med * 1.85 + kStats.mad * (2.1 / s) + 0.016 / s);
-    const sThresh = Math.max(0.020 / s, sStats.med * 1.85 + sStats.mad * (2.1 / s) + 0.014 / s);
-    const tThresh = Math.max(0.026 / s, tStats.med * 1.95 + tStats.mad * (2.2 / s) + 0.016 / s);
-    const hThresh = Math.max(0.011 / s, hStats.med * 1.65 + hStats.mad * (1.85 / s) + 0.006 / s);
-
-    let kickFired = false;
-    let snareFired = false;
-
-    // KICK
-    if (
-      kick.flux > kThresh &&
-      kick.energy > 0.14 / s &&
-      kick.flux >= prevBandFlux.kick * 0.85 &&
-      nowMs - lastHitAt.kick > 95
-    ) {
-      lastHitAt.kick = nowMs;
-      kickFired = true;
-      triggerDrum('kick', Math.min(1, kick.flux / (kThresh * 1.8)));
+    const len = histFilled;
+    function thresh(arr, floorValue) {
+      const stats = medianAndMad(arr, len);
+      return Math.max(floorValue / s, stats.med * 1.8 + stats.mad * (2 / s) + floorValue * 0.5 / s);
     }
+    const peaks = {
+      kick: kick.flux > thresh(liveFlux.kick, 0.02) && kick.flux >= prevBandFlux.kick * 0.85,
+      snare: wire.flux > thresh(liveFlux.snare, 0.016) && wire.flux >= prevBandFlux.snare * 0.85,
+      hat: hat.flux > thresh(liveFlux.hat, 0.01) && hat.flux >= prevBandFlux.hat * 0.85,
+      ride: ride.flux > thresh(liveFlux.ride, 0.012) && ride.flux >= prevBandFlux.ride * 0.85,
+      tomLow: floor.flux > thresh(liveFlux.tom, 0.018),
+      tomMid: mid.flux > thresh(liveFlux.tom, 0.018),
+      tomHigh: high.flux > thresh(liveFlux.tom, 0.018)
+    };
+    const labels = window.DrumAnalyzer.classifyLive({
+      low: kick.energy,
+      sub: kick.energy * 0.7,
+      floorE: floor.energy,
+      midE: mid.energy,
+      highE: high.energy,
+      wire: wire.energy,
+      rideE: ride.energy,
+      hatE: hat.energy,
+      presence: mid.energy,
+      peakHz: peakHz || 80,
+      peakiness: (high.peak + mid.peak + floor.peak) / (high.energy + mid.energy + floor.energy + 1e-6),
+      bodyHz: peakHz,
+      bodyPeak: mid.peak / (mid.energy + 1e-6),
+      highHz: high.peakBin / mag.length * nyquist,
+      highPeak: high.peak / (high.energy + 1e-6),
+      cymPeak: ride.peak / (ride.energy + 1e-6),
+      dHat: ride.energy > hat.energy * 0.85 ? 0.42 : 0.12,
+      dLong: (hat.energy + ride.energy) > wire.energy * 1.6 && hat.energy > 0.08 ? 0.62 : 0.12,
+      dLow: 0.35,
+      dLowP: 0.35,
+      lowNow: kick.energy,
+      percRatioLow: 0.2,
+      strength: 1.2,
+      peakBands: peaks
+    });
+    labels.forEach((lab) => {
+      const gap = lab.piece === 'hatClosed' ? 60 : lab.piece === 'crash' || lab.piece === 'crash2' ? 280 : 90;
+      if (nowMs - (lastHitAt[lab.piece] || -1e9) < gap) return;
+      lastHitAt[lab.piece] = nowMs;
+      triggerDrum(lab.piece, Math.max(0.45, Math.min(1, lab.strength || 0.8)));
+    });
 
-    // SNARE
-    if (
-      snareFlux > sThresh &&
-      snareWire.energy > 0.038 / s &&
-      snareFlux >= prevBandFlux.snare * 0.85 &&
-      nowMs - lastHitAt.snare > 95 &&
-      (!kickFired || snareWire.flux > kick.flux * 0.28)
-    ) {
-      lastHitAt.snare = nowMs;
-      snareFired = true;
-      triggerDrum('snare', Math.min(1, snareFlux / (sThresh * 1.8)));
-    }
-
-    // TOM (only when not dominated by kick or snare wires)
-    if (
-      !kickFired &&
-      !snareFired &&
-      nowMs - lastHitAt.kick > 55 &&
-      nowMs - lastHitAt.snare > 55 &&
-      tom.flux > tThresh &&
-      tom.energy > 0.13 / s &&
-      tom.flux > kick.flux * 1.1 &&
-      snareWire.flux < tom.flux * 0.55 &&
-      nowMs - lastHitAt.tom > 110
-    ) {
-      lastHitAt.tom = nowMs;
-      tomToggle = !tomToggle;
-      triggerDrum(tomToggle ? 'tom1' : 'tom2', Math.min(1, tom.flux / (tThresh * 1.8)));
-    }
-
-    // HI-HAT vs CRASH
-    if (
-      hihat.flux > hThresh &&
-      hihat.energy > 0.022 / s &&
-      hihat.flux >= prevBandFlux.hat * 0.85 &&
-      nowMs - lastHitAt.hihat > 68
-    ) {
-      const isCrash =
-        !snareFired &&
-        shimmer.flux > 0.055 / s &&
-        hihat.energy > 0.13 / s &&
-        hihat.flux > hThresh * 1.45 &&
-        hihat.flux > snareWire.flux * 0.85 &&
-        nowMs - lastHitAt.crash > 360;
-
-      if (isCrash) {
-        lastHitAt.crash = nowMs;
-        lastHitAt.hihat = nowMs;
-        triggerDrum('crash', 1.0);
-      } else {
-        lastHitAt.hihat = nowMs;
-        triggerDrum('hihat', Math.min(1, hihat.flux / (hThresh * 1.8)));
-      }
-    }
-
-    // Push current flux into adaptive ring buffers
-    fluxHist.kick[histIdx] = kick.flux;
-    fluxHist.snare[histIdx] = snareFlux;
-    fluxHist.tom[histIdx] = tom.flux;
-    fluxHist.hat[histIdx] = hihat.flux;
+    liveFlux.kick[histIdx] = kick.flux;
+    liveFlux.snare[histIdx] = wire.flux;
+    liveFlux.tom[histIdx] = Math.max(floor.flux, mid.flux, high.flux);
+    liveFlux.hat[histIdx] = hat.flux;
+    liveFlux.ride[histIdx] = ride.flux;
     histIdx = (histIdx + 1) % HISTORY_LEN;
-    if (histFilled < HISTORY_LEN) histFilled++;
-
+    if (histFilled < HISTORY_LEN) histFilled += 1;
     prevBandFlux.kick = kick.flux;
-    prevBandFlux.snare = snareFlux;
-    prevBandFlux.tom = tom.flux;
-    prevBandFlux.hat = hihat.flux;
-
+    prevBandFlux.snare = wire.flux;
+    prevBandFlux.tom = Math.max(floor.flux, mid.flux, high.flux);
+    prevBandFlux.hat = hat.flux;
+    prevBandFlux.ride = ride.flux;
     prevMag.set(mag);
   }
 
-  // --- Visual Hit Trigger & Cartoon Animation ---
-  function triggerDrum(drum, strength = 0.9) {
+  function triggerDrum(drum, strength = 0.9, audioTime) {
     const meta = DRUM_META[drum];
     if (!meta) return;
-
-    drumState[drum] = Math.max(drumState[drum], 0.65 + 0.35 * strength);
+    const vis = meta.vis;
+    drumState[vis] = Math.max(drumState[vis] || 0, 0.55 + 0.45 * strength);
+    meterLevel[drum] = Math.max(meterLevel[drum] || 0, 0.4 + 0.6 * strength);
+    if (meta.hat === 'open') hatOpenTarget = 1;
+    if (meta.hat === 'closed') hatOpenTarget = 0;
     hitCount += 1;
     hitCounterEl.textContent = `מכות: ${hitCount}`;
-
     const nowMs = performance.now();
-    hitLog.push({ drum, timeMs: Math.round(nowMs), strength: Number(strength.toFixed(2)) });
-    if (hitLog.length > 250) hitLog.shift();
-
-    // Update HUD badge
+    hitLog.push({
+      drum,
+      timeMs: audioTime == null ? Math.round(nowMs) : Math.round(audioTime * 1000),
+      strength: Number(strength.toFixed(2))
+    });
+    if (hitLog.length > 400) hitLog.shift();
     hitPill.textContent = meta.label;
-    if (nowMs - lastHudPop > 50) {
+    if (nowMs - lastHudPop > 45) {
       hitPill.classList.remove('pop');
       void hitPill.offsetWidth;
       hitPill.classList.add('pop');
       lastHudPop = nowMs;
     }
-
-    // Move corresponding drumstick
     if (meta.stick) {
       const st = stickAnim[meta.stick];
       st.targetX = meta.x;
       st.targetY = meta.y;
-      st.timer = 1.0;
+      st.timer = 1;
     }
-
-    spawnImpactFX(meta.x, meta.y, meta.color, drum === 'kick' || drum === 'crash' ? 1.2 : 0.9);
+    spawnImpactFX(meta.x, meta.y, meta.color, drum === 'kick' || drum === 'crash' || drum === 'crash2' ? 1.15 : 0.85);
   }
 
-  function spawnImpactFX(x, y, color, scale = 1.0) {
+  function spawnImpactFX(x, y, color, scale = 1) {
     const fx = svgPieces.fxLayer;
+    if (!fx) return;
     if (fx.childElementCount > 18) {
       while (fx.childElementCount > 10) fx.removeChild(fx.firstChild);
     }
-
     const ns = 'http://www.w3.org/2000/svg';
     const g = document.createElementNS(ns, 'g');
-
     const ring = document.createElementNS(ns, 'circle');
     ring.setAttribute('cx', x);
     ring.setAttribute('cy', y);
-    ring.setAttribute('r', String(10 * scale));
+    ring.setAttribute('r', String(8 * scale));
     ring.setAttribute('fill', 'none');
     ring.setAttribute('stroke', color);
-    ring.setAttribute('stroke-width', '3.5');
+    ring.setAttribute('stroke-width', '3');
     ring.setAttribute('opacity', '0.95');
-
-    const star = document.createElementNS(ns, 'path');
-    const rOuter = 14 * scale;
-    const rInner = 5 * scale;
-    star.setAttribute(
-      'd',
-      `M ${x} ${y - rOuter} L ${x + rInner} ${y - rInner} L ${x + rOuter} ${y} L ${x + rInner} ${y + rInner} L ${x} ${y + rOuter} L ${x - rInner} ${y + rInner} L ${x - rOuter} ${y} L ${x - rInner} ${y - rInner} Z`
-    );
-    star.setAttribute('fill', '#ffffff');
-    star.setAttribute('opacity', '0.9');
-
     g.appendChild(ring);
-    g.appendChild(star);
     fx.appendChild(g);
-
     const start = performance.now();
-    const dur = 220;
     function stepFX(t) {
-      const p = Math.min(1, (t - start) / dur);
-      const ease = 1 - Math.pow(1 - p, 2);
-      ring.setAttribute('r', String((10 + 28 * ease) * scale));
+      const p = Math.min(1, (t - start) / 220);
+      ring.setAttribute('r', String((8 + 26 * p) * scale));
       ring.setAttribute('opacity', String((1 - p) * 0.95));
-      star.setAttribute('opacity', String(Math.max(0, 1 - p * 1.4)));
-      if (p < 1) {
-        requestAnimationFrame(stepFX);
-      } else if (g.parentNode === fx) {
-        fx.removeChild(g);
-      }
+      if (p < 1) requestAnimationFrame(stepFX);
+      else if (g.parentNode === fx) fx.removeChild(g);
     }
     requestAnimationFrame(stepFX);
   }
@@ -722,23 +767,16 @@
   function updateStick(side, dt) {
     const st = stickAnim[side];
     const el = stickEls[side];
-    if (st.timer > 0) {
-      st.timer = Math.max(0, st.timer - dt / 175);
-    }
-
-    // Strike curve: quick snap down onto drumhead, then lift 24px above target
-    const lift = st.timer > 0.72 ? 0 : (1 - st.timer) * 24;
+    if (!el.forearm) return;
+    if (st.timer > 0) st.timer = Math.max(0, st.timer - dt / 160);
+    const lift = st.timer > 0.72 ? 0 : (1 - st.timer) * 18;
     const goalX = st.timer > 0 ? st.targetX : el.home.x;
     const goalY = (st.timer > 0 ? st.targetY : el.home.y) - lift;
-
-    const lerp = Math.min(1, dt / 24);
+    const lerp = Math.min(1, dt / 22);
     st.x += (goalX - st.x) * lerp;
     st.y += (goalY - st.y) * lerp;
-
-    // Hand sits partway between shoulder and tip, slightly lifted
-    const handX = el.shoulder.x + (st.x - el.shoulder.x) * 0.44;
-    const handY = el.shoulder.y + (st.y - el.shoulder.y) * 0.44 - 6;
-
+    const handX = el.shoulder.x + (st.x - el.shoulder.x) * 0.46;
+    const handY = el.shoulder.y + (st.y - el.shoulder.y) * 0.46 - 4;
     el.forearm.setAttribute('x2', handX.toFixed(1));
     el.forearm.setAttribute('y2', handY.toFixed(1));
     el.hand.setAttribute('cx', handX.toFixed(1));
@@ -751,57 +789,84 @@
     el.tip.setAttribute('cy', st.y.toFixed(1));
   }
 
+  function paintPiece(el, amount, dx, dy, glow) {
+    if (!el) return;
+    const sx = 1 + amount * 0.06;
+    const sy = 1 - amount * 0.04;
+    el.style.transform = `translate(${(dx || 0).toFixed(2)}px, ${(dy || 0).toFixed(2)}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
+    el.style.filter = amount > 0.08 ? `drop-shadow(0 0 ${(amount * 14).toFixed(1)}px ${glow})` : '';
+  }
+
   function renderVisuals(nowMs, dt) {
-    // Decay drum hit intensities
-    drumState.kick *= Math.exp(-dt / 105);
-    drumState.snare *= Math.exp(-dt / 95);
-    drumState.hihat *= Math.exp(-dt / 75);
-    drumState.crash *= Math.exp(-dt / 260);
-    drumState.tom1 *= Math.exp(-dt / 105);
-    drumState.tom2 *= Math.exp(-dt / 105);
+    Object.keys(drumState).forEach((key) => {
+      const decay = key === 'crash' || key === 'crash2' || key === 'ride' ? 240 : key === 'hihat' ? 70 : 100;
+      drumState[key] *= Math.exp(-dt / decay);
+    });
+    Object.keys(meterLevel).forEach((key) => {
+      meterLevel[key] *= Math.exp(-dt / 180);
+      if (meterEls[key]) meterEls[key].style.width = `${Math.min(100, Math.round(meterLevel[key] * 100))}%`;
+    });
 
     const k = drumState.kick;
-    const s = drumState.snare;
+    paintPiece(svgPieces.kick, k, 0, 0, 'rgba(255,107,74,0.85)');
+    if (svgPieces.kickBeater) {
+      svgPieces.kickBeater.style.transform = `translateY(${(-k * 10).toFixed(2)}px)`;
+    }
+    paintPiece(svgPieces.snare, drumState.snare, 0, drumState.snare * 4, 'rgba(255,209,102,0.85)');
+    paintPiece(svgPieces.tomHigh, drumState.tomHigh, 0, drumState.tomHigh * 4, 'rgba(78,205,196,0.85)');
+    paintPiece(svgPieces.tomMid, drumState.tomMid, 0, drumState.tomMid * 4, 'rgba(255,177,94,0.85)');
+    paintPiece(svgPieces.tomFloor, drumState.tomFloor, 0, drumState.tomFloor * 4, 'rgba(106,147,255,0.85)');
+
+    hatOpenAmount += (hatOpenTarget - hatOpenAmount) * Math.min(1, dt / 90);
     const h = drumState.hihat;
+    if (svgPieces.hihatTop) {
+      const lift = hatOpenAmount * 7 + h * 3;
+      const wobble = Math.sin(nowMs * 0.05) * h * 4;
+      svgPieces.hihatTop.style.transform = `translateY(${(-lift).toFixed(2)}px) rotate(${wobble.toFixed(2)}deg)`;
+    }
+    if (svgPieces.hihat) {
+      svgPieces.hihat.style.filter = h > 0.08 ? `drop-shadow(0 0 ${(h * 12).toFixed(1)}px rgba(78,205,196,0.85))` : '';
+    }
+    if (svgPieces.hihatFoot) {
+      const press = (1 - hatOpenAmount) * 4 - h * 2;
+      svgPieces.hihatFoot.style.transform = `translateY(${press.toFixed(2)}px)`;
+    }
+
     const c = drumState.crash;
-    const t1 = drumState.tom1;
-    const t2 = drumState.tom2;
+    if (svgPieces.crash) {
+      const wobble = Math.sin(nowMs * 0.04) * c * 10;
+      svgPieces.crash.style.transform = `rotate(${wobble.toFixed(2)}deg) scale(${(1 + c * 0.05).toFixed(3)})`;
+      svgPieces.crash.style.filter = c > 0.08 ? `drop-shadow(0 0 ${(c * 16).toFixed(1)}px rgba(255,229,143,0.9))` : '';
+    }
+    const c2 = drumState.crash2;
+    if (svgPieces.crash2) {
+      const wobble2 = Math.sin(nowMs * 0.045 + 1) * c2 * 9;
+      svgPieces.crash2.style.transform = `rotate(${wobble2.toFixed(2)}deg) scale(${(1 + c2 * 0.05).toFixed(3)})`;
+      svgPieces.crash2.style.filter = c2 > 0.08 ? `drop-shadow(0 0 ${(c2 * 14).toFixed(1)}px rgba(255,159,107,0.9))` : '';
+    }
+    const r = drumState.ride;
+    if (svgPieces.ride) {
+      svgPieces.ride.style.transform = `scale(${(1 + r * 0.04).toFixed(3)})`;
+      svgPieces.ride.style.filter = r > 0.08 ? `drop-shadow(0 0 ${(r * 14).toFixed(1)}px rgba(255,229,143,0.9))` : '';
+    }
+    if (svgPieces.rideBell) {
+      svgPieces.rideBell.setAttribute('r', (6.5 + r * 2.2).toFixed(2));
+    }
 
-    svgPieces.kick.style.transform = `scale(${(1 + k * 0.085).toFixed(4)})`;
-    svgPieces.kick.style.filter = k > 0.08 ? `drop-shadow(0 0 ${(k * 16).toFixed(1)}px rgba(255,107,74,0.8))` : '';
-    svgPieces.kickBeater.style.transform = `translateY(${(-k * 9).toFixed(2)}px) scale(${(1 + k * 0.14).toFixed(3)})`;
-
-    svgPieces.snare.style.transform = `translateY(${(s * 5).toFixed(2)}px) scale(${(1 + s * 0.07).toFixed(4)}, ${(1 - s * 0.06).toFixed(4)})`;
-    svgPieces.snare.style.filter = s > 0.08 ? `drop-shadow(0 0 ${(s * 14).toFixed(1)}px rgba(255,209,102,0.85))` : '';
-
-    const hatWobble = Math.sin(nowMs * 0.05) * h * 5;
-    svgPieces.hihatTop.style.transform = `translateY(${(-h * 5).toFixed(2)}px) rotate(${hatWobble.toFixed(2)}deg)`;
-    svgPieces.hihat.style.filter = h > 0.08 ? `drop-shadow(0 0 ${(h * 12).toFixed(1)}px rgba(78,205,196,0.85))` : '';
-
-    const crashWobble = Math.sin(nowMs * 0.036) * c * 11;
-    svgPieces.crash.style.transform = `rotate(${crashWobble.toFixed(2)}deg) scale(${(1 + c * 0.05).toFixed(4)})`;
-    svgPieces.crash.style.filter = c > 0.08 ? `drop-shadow(0 0 ${(c * 18).toFixed(1)}px rgba(255,229,143,0.9))` : '';
-
-    svgPieces.tom1.style.transform = `translateY(${(t1 * 5).toFixed(2)}px) scale(${(1 + t1 * 0.06).toFixed(4)})`;
-    svgPieces.tom1.style.filter = t1 > 0.08 ? `drop-shadow(0 0 ${(t1 * 12).toFixed(1)}px rgba(78,205,196,0.8))` : '';
-
-    svgPieces.tom2.style.transform = `translateY(${(t2 * 5).toFixed(2)}px) scale(${(1 + t2 * 0.06).toFixed(4)})`;
-    svgPieces.tom2.style.filter = t2 > 0.08 ? `drop-shadow(0 0 ${(t2 * 12).toFixed(1)}px rgba(106,147,255,0.8))` : '';
-
-    // Drummer head bob
-    const bob = Math.max(k, s) * 4;
-    svgPieces.drummer.style.transform = `translateY(${bob.toFixed(2)}px)`;
-
+    if (svgPieces.drummer) {
+      const bob = Math.max(k, drumState.snare) * 3.5;
+      svgPieces.drummer.style.transform = `translateY(${bob.toFixed(2)}px)`;
+    }
     updateStick('left', dt);
     updateStick('right', dt);
 
-    // Update playback progress bar
-    if ((mode === 'demo' || mode === 'file') && currentBuffer && isPlaying && audioCtx) {
+    if ((mode === 'demo' || mode === 'file') && currentBuffer && audioCtx) {
       const dur = currentBuffer.duration || 1;
-      const elapsed = isLooping
-        ? ((audioCtx.currentTime - startCtxTime) % dur + dur) % dur
-        : Math.min(dur, Math.max(0, audioCtx.currentTime - startCtxTime));
-      seekSlider.value = elapsed.toFixed(2);
+      const elapsed = playbackTime();
+      if (isPlaying) {
+        fireDueHits(elapsed);
+        seekSlider.value = elapsed.toFixed(2);
+      }
       trackTime.textContent = `${formatTime(elapsed)} / ${formatTime(dur)}`;
     }
   }
@@ -809,15 +874,10 @@
   function frame(nowMs) {
     const dt = Math.min(50, Math.max(4, nowMs - lastFrameMs));
     lastFrameMs = nowMs;
-
-    analyzeAudio(nowMs);
+    if (mode === 'mic') analyzeMic(nowMs);
     renderVisuals(nowMs, dt);
-
-    if (!screenStage.hidden) {
-      rafId = requestAnimationFrame(frame);
-    } else {
-      rafId = null;
-    }
+    if (!screenStage.hidden) rafId = requestAnimationFrame(frame);
+    else rafId = null;
   }
 
   function startLoop() {

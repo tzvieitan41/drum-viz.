@@ -73,116 +73,197 @@
           <input id="sync-slider" dir="ltr" type="range" min="-200" max="200" step="10" value="0">
         </div>
         <p class="setting-hint">אם המכות מקדימות את מה ששומעים באוזניות, הזיזו שמאלה (מספר שלילי). אם הן מאחרות, הזיזו ימינה.</p>
+        <label class="toggle"><input id="drums-only" type="checkbox"> השמע רק את התופים</label>
+        <label class="toggle"><input id="quick-mode" type="checkbox"> מצב מהיר — בלי הפרדת תופים</label>
       </section>
 
+      <div id="progress-wrap" class="progress-wrap" hidden>
+        <div id="progress-label">מפריד את התופים… 0%</div>
+        <div class="progress-track"><div id="progress-bar"></div></div>
+      </div>
       <section class="stage-card">
         <div class="stage-hud">
           <div id="hit-pill" class="hit-pill" aria-live="off">ממתין לקצב…</div>
           <div id="hit-counter" class="hit-counter">מכות: 0</div>
         </div>
         <div class="kit-wrap">
-          <svg id="drum-kit-svg" viewBox="0 0 400 430" role="img" aria-label="מערכת תופים במבט מלמעלה">
+          <svg id="drum-kit-svg" viewBox="0 0 1000 760" role="img" aria-label="מערכת תופים במבט מלמעלה">
             <defs>
-              <radialGradient id="head" cx="38%" cy="34%" r="70%">
-                <stop offset="0%" stop-color="#fffaf2"/>
-                <stop offset="70%" stop-color="#f3e6d0"/>
-                <stop offset="100%" stop-color="#e2d0b4"/>
+              <radialGradient id="brass" cx="38%" cy="32%" r="75%">
+                <stop offset="0%" stop-color="#fff6d2"/>
+                <stop offset="28%" stop-color="#f0d078"/>
+                <stop offset="62%" stop-color="#d7a63a"/>
+                <stop offset="100%" stop-color="#8d6816"/>
               </radialGradient>
-              <radialGradient id="brass" cx="36%" cy="32%" r="75%">
-                <stop offset="0%" stop-color="#fff4c8"/>
-                <stop offset="45%" stop-color="#e7c15a"/>
-                <stop offset="100%" stop-color="#b8881e"/>
+              <radialGradient id="brassDeep" cx="40%" cy="34%" r="75%">
+                <stop offset="0%" stop-color="#ffe7c4"/>
+                <stop offset="40%" stop-color="#e2b15a"/>
+                <stop offset="100%" stop-color="#8a5a18"/>
               </radialGradient>
-              <radialGradient id="brass2" cx="40%" cy="36%" r="75%">
-                <stop offset="0%" stop-color="#ffe0c2"/>
-                <stop offset="50%" stop-color="#e89a55"/>
-                <stop offset="100%" stop-color="#b85a28"/>
+              <radialGradient id="bell" cx="35%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#fffaf0"/>
+                <stop offset="55%" stop-color="#e7c56a"/>
+                <stop offset="100%" stop-color="#a67c22"/>
               </radialGradient>
-              <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
-              </filter>
+              <radialGradient id="headCoat" cx="42%" cy="38%" r="68%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="55%" stop-color="#f4f1ea"/>
+                <stop offset="100%" stop-color="#d9d3c6"/>
+              </radialGradient>
+              <radialGradient id="headClear" cx="40%" cy="36%" r="70%">
+                <stop offset="0%" stop-color="#f7f4ee"/>
+                <stop offset="70%" stop-color="#e7d7bc"/>
+                <stop offset="100%" stop-color="#c9b08a"/>
+              </radialGradient>
+              <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="35%" stop-color="#c5ccd4"/>
+                <stop offset="70%" stop-color="#8e98a3"/>
+                <stop offset="100%" stop-color="#f4f7fa"/>
+              </linearGradient>
+              <linearGradient id="pedal" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f7f8fa"/>
+                <stop offset="40%" stop-color="#b7c0c8"/>
+                <stop offset="100%" stop-color="#6d767e"/>
+              </linearGradient>
             </defs>
-            <ellipse cx="200" cy="400" rx="150" ry="22" fill="rgba(0,0,0,0.35)"/>
-
-            <g id="piece-crash" filter="url(#soft)">
-              <circle cx="78" cy="78" r="46" fill="url(#brass)" stroke="#3a2a10" stroke-width="3"/>
-              <circle cx="78" cy="78" r="34" fill="none" stroke="#8a6416" stroke-width="1.4" opacity="0.85"/>
-              <circle cx="78" cy="78" r="22" fill="none" stroke="#8a6416" stroke-width="1.2" opacity="0.7"/>
-              <circle cx="78" cy="78" r="5" fill="#f8e7b0" stroke="#3a2a10" stroke-width="1.4"/>
+            <rect width="1000" height="760" fill="#07080c"/>
+            
+            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
+              <line x1="175" y1="150" x2="175" y2="672"/>
+              <line x1="175" y1="660" x2="147" y2="700"/>
+              <line x1="175" y1="660" x2="203" y2="700"/>
+              <line x1="175" y1="660" x2="175" y2="700"/>
             </g>
-            <g id="piece-crash2" filter="url(#soft)">
-              <circle cx="268" cy="62" r="34" fill="url(#brass2)" stroke="#3a2a10" stroke-width="3"/>
-              <circle cx="268" cy="62" r="24" fill="none" stroke="#8a4a20" stroke-width="1.3" opacity="0.8"/>
-              <circle cx="268" cy="62" r="14" fill="none" stroke="#8a4a20" stroke-width="1.1" opacity="0.7"/>
-              <circle cx="268" cy="62" r="4" fill="#ffe1c4" stroke="#3a2a10" stroke-width="1.3"/>
+            
+            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
+              <line x1="145" y1="390" x2="145" y2="612"/>
+              <line x1="145" y1="600" x2="117" y2="640"/>
+              <line x1="145" y1="600" x2="173" y2="640"/>
+              <line x1="145" y1="600" x2="145" y2="640"/>
             </g>
-            <g id="piece-ride" filter="url(#soft)">
-              <circle cx="332" cy="118" r="50" fill="url(#brass)" stroke="#3a2a10" stroke-width="3"/>
-              <circle cx="332" cy="118" r="38" fill="none" stroke="#8a6416" stroke-width="1.5" opacity="0.85"/>
-              <circle cx="332" cy="118" r="26" fill="none" stroke="#8a6416" stroke-width="1.3" opacity="0.75"/>
-              <circle cx="332" cy="118" r="12" fill="#f6e2a4" stroke="#3a2a10" stroke-width="1.6"/>
-              <circle id="ride-bell" cx="332" cy="118" r="5" fill="#fff8dc" stroke="#3a2a10" stroke-width="1.2"/>
+            
+            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
+              <line x1="700" y1="175" x2="700" y2="672"/>
+              <line x1="700" y1="660" x2="672" y2="700"/>
+              <line x1="700" y1="660" x2="728" y2="700"/>
+              <line x1="700" y1="660" x2="700" y2="700"/>
             </g>
-
-            <g id="piece-tom-high" filter="url(#soft)">
-              <circle cx="156" cy="168" r="30" fill="#1c6f74" stroke="#0e2c30" stroke-width="7"/>
-              <circle cx="156" cy="168" r="24" fill="url(#head)" stroke="#d7dbe8" stroke-width="3"/>
+            
+            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
+              <line x1="860" y1="200" x2="860" y2="672"/>
+              <line x1="860" y1="660" x2="832" y2="700"/>
+              <line x1="860" y1="660" x2="888" y2="700"/>
+              <line x1="860" y1="660" x2="860" y2="700"/>
             </g>
-            <g id="piece-tom-mid" filter="url(#soft)">
-              <circle cx="224" cy="156" r="34" fill="#c56a2a" stroke="#4a2410" stroke-width="7"/>
-              <circle cx="224" cy="156" r="27" fill="url(#head)" stroke="#d7dbe8" stroke-width="3"/>
+            
+            <g id="piece-crash">
+              <circle cx="175" cy="145" r="111" fill="rgba(0,0,0,0.35)"/>
+              <circle cx="175" cy="145" r="108" fill="url(#brass)" stroke="#5a4010" stroke-width="2.2"/>
+              <circle cx="175" cy="145" r="97.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="86.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="75.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="64.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="54.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="43.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="32.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
+              <circle cx="175" cy="145" r="17.3" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.4"/>
+              <circle cx="175" cy="145" r="3.4" fill="#1a1a1a" stroke="#888" stroke-width="0.8"/>
             </g>
-            <g id="piece-floor" filter="url(#soft)">
-              <circle cx="324" cy="230" r="42" fill="#2a4eaa" stroke="#101830" stroke-width="8"/>
-              <circle cx="324" cy="230" r="34" fill="url(#head)" stroke="#d7dbe8" stroke-width="3.5"/>
+            
+            <g id="piece-ride">
+              <circle cx="690" cy="165" r="135" fill="rgba(0,0,0,0.35)"/>
+              <circle cx="690" cy="165" r="132" fill="url(#brass)" stroke="#5a4010" stroke-width="2.2"/>
+              <circle cx="690" cy="165" r="118.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="105.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="92.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="79.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="66.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="52.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="39.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
+              <circle cx="690" cy="165" r="21.1" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.4"/>
+              <circle cx="690" cy="165" r="3.4" fill="#1a1a1a" stroke="#888" stroke-width="0.8"/>
             </g>
-
-            <g id="piece-kick" filter="url(#soft)">
-              <circle cx="196" cy="262" r="58" fill="#3a2f86" stroke="#16122e" stroke-width="10"/>
-              <circle cx="196" cy="262" r="46" fill="url(#head)" stroke="#ece7ff" stroke-width="4"/>
-              <circle cx="196" cy="262" r="8" fill="#ff6b4a" stroke="#1e183b" stroke-width="2"/>
+            
+            <g id="piece-crash2">
+              <circle cx="865" cy="195" r="115" fill="rgba(0,0,0,0.35)"/>
+              <circle cx="865" cy="195" r="112" fill="url(#brassDeep)" stroke="#5a4010" stroke-width="2.2"/>
+              <circle cx="865" cy="195" r="100.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="89.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="78.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="67.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="56.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="44.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="33.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
+              <circle cx="865" cy="195" r="17.9" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.4"/>
+              <circle cx="865" cy="195" r="3.4" fill="#1a1a1a" stroke="#888" stroke-width="0.8"/>
+            </g>
+            
+            <g id="piece-tom-high">
+              <circle cx="400" cy="250" r="83" fill="#07080b"/>
+              <circle cx="400" cy="250" r="79" fill="none" stroke="url(#chrome)" stroke-width="5"/>
+              <circle cx="400" cy="250" r="74" fill="#101114"/>
+              <circle cx="400" cy="250" r="72" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
+              <circle cx="400" cy="250" r="44.6" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
+              <rect x="397.0" y="167.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 400.0 173.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="451.4" y="189.6" width="6" height="12" rx="1.4" transform="rotate(-45.0 454.4 195.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="474.0" y="244.0" width="6" height="12" rx="1.4" transform="rotate(0.0 477.0 250.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="451.4" y="298.4" width="6" height="12" rx="1.4" transform="rotate(45.0 454.4 304.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="397.0" y="321.0" width="6" height="12" rx="1.4" transform="rotate(90.0 400.0 327.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="342.6" y="298.4" width="6" height="12" rx="1.4" transform="rotate(135.0 345.6 304.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="320.0" y="244.0" width="6" height="12" rx="1.4" transform="rotate(180.0 323.0 250.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="342.6" y="189.6" width="6" height="12" rx="1.4" transform="rotate(225.0 345.6 195.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
+            </g>
+            
+            <g id="piece-tom-mid">
+              <circle cx="545" cy="242" r="93" fill="#07080b"/>
+              <circle cx="545" cy="242" r="89" fill="none" stroke="url(#chrome)" stroke-width="5"/>
+              <circle cx="545" cy="242" r="84" fill="#101114"/>
+              <circle cx="545" cy="242" r="82" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
+              <circle cx="545" cy="242" r="50.8" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
+              <rect x="542.0" y="149.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 545.0 155.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="603.5" y="174.5" width="6" height="12" rx="1.4" transform="rotate(-45.0 606.5 180.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="629.0" y="236.0" width="6" height="12" rx="1.4" transform="rotate(0.0 632.0 242.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="603.5" y="297.5" width="6" height="12" rx="1.4" transform="rotate(45.0 606.5 303.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="542.0" y="323.0" width="6" height="12" rx="1.4" transform="rotate(90.0 545.0 329.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="480.5" y="297.5" width="6" height="12" rx="1.4" transform="rotate(135.0 483.5 303.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="455.0" y="236.0" width="6" height="12" rx="1.4" transform="rotate(180.0 458.0 242.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="480.5" y="174.5" width="6" height="12" rx="1.4" transform="rotate(225.0 483.5 180.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
+            </g>
+            
+            <g id="piece-kick">
+              <circle cx="485" cy="430" r="119" fill="#07080b"/>
+              <circle cx="485" cy="430" r="115" fill="none" stroke="url(#chrome)" stroke-width="5"/>
+              <circle cx="485" cy="430" r="110" fill="#14161c"/>
+              <circle cx="485" cy="430" r="108" fill="url(#headClear)" stroke="#e4e7ee" stroke-width="2.4"/>
+              <circle cx="485" cy="430" r="67.0" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
+              <rect x="482.0" y="311.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 485.0 317.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="561.9" y="344.1" width="6" height="12" rx="1.4" transform="rotate(-45.0 564.9 350.1)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="595.0" y="424.0" width="6" height="12" rx="1.4" transform="rotate(0.0 598.0 430.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="561.9" y="503.9" width="6" height="12" rx="1.4" transform="rotate(45.0 564.9 509.9)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="482.0" y="537.0" width="6" height="12" rx="1.4" transform="rotate(90.0 485.0 543.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="402.1" y="503.9" width="6" height="12" rx="1.4" transform="rotate(135.0 405.1 509.9)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="369.0" y="424.0" width="6" height="12" rx="1.4" transform="rotate(180.0 372.0 430.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="402.1" y="344.1" width="6" height="12" rx="1.4" transform="rotate(225.0 405.1 350.1)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
+            </g>
+            
+            <g id="piece-floor">
+              <circle cx="770" cy="455" r="123" fill="#07080b"/>
+              <circle cx="770" cy="455" r="119" fill="none" stroke="url(#chrome)" stroke-width="5"/>
+              <circle cx="770" cy="455" r="114" fill="#101114"/>
+              <circle cx="770" cy="455" r="112" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
+              <circle cx="770" cy="455" r="69.4" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
+              <rect x="767.0" y="332.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 770.0 338.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="849.7" y="366.3" width="6" height="12" rx="1.4" transform="rotate(-45.0 852.7 372.3)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="884.0" y="449.0" width="6" height="12" rx="1.4" transform="rotate(0.0 887.0 455.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="849.7" y="531.7" width="6" height="12" rx="1.4" transform="rotate(45.0 852.7 537.7)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="767.0" y="566.0" width="6" height="12" rx="1.4" transform="rotate(90.0 770.0 572.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="684.3" y="531.7" width="6" height="12" rx="1.4" transform="rotate(135.0 687.3 537.7)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="650.0" y="449.0" width="6" height="12" rx="1.4" transform="rotate(180.0 653.0 455.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="684.3" y="366.3" width="6" height="12" rx="1.4" transform="rotate(225.0 687.3 372.3)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
+            </g>
+            
+            <g id="piece-snare">
+              <circle cx="315" cy="500" r="107" fill="#07080b"/>
+              <circle cx="315" cy="500" r="103" fill="none" stroke="url(#chrome)" stroke-width="5"/>
+              <circle cx="315" cy="500" r="98" fill="#101114"/>
+              <circle cx="315" cy="500" r="96" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
+              <circle cx="315" cy="500" r="59.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
+              <rect x="312.0" y="393.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 315.0 399.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="383.4" y="422.6" width="6" height="12" rx="1.4" transform="rotate(-45.0 386.4 428.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="413.0" y="494.0" width="6" height="12" rx="1.4" transform="rotate(0.0 416.0 500.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="383.4" y="565.4" width="6" height="12" rx="1.4" transform="rotate(45.0 386.4 571.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="312.0" y="595.0" width="6" height="12" rx="1.4" transform="rotate(90.0 315.0 601.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="240.6" y="565.4" width="6" height="12" rx="1.4" transform="rotate(135.0 243.6 571.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="211.0" y="494.0" width="6" height="12" rx="1.4" transform="rotate(180.0 214.0 500.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="240.6" y="422.6" width="6" height="12" rx="1.4" transform="rotate(225.0 243.6 428.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
+            </g>
+            <g id="piece-hat">
+              <circle cx="145" cy="395" r="84" fill="#9a7424" stroke="#3a2c0c" stroke-width="2"/>
+              <g id="hat-top">
+                <circle cx="145" cy="395" r="84" fill="url(#brass)" stroke="#5a4010" stroke-width="2.2"/>
+                <circle cx="145" cy="395" r="75.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="67.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="58.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="50.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="42.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="33.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="25.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
+                <circle cx="145" cy="395" r="14" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.2"/>
+                <circle cx="145" cy="395" r="3.2" fill="#1a1a1a"/>
+              </g>
+            </g>
+            <line x1="145" y1="479" x2="145" y2="590" stroke="#d5dbe3" stroke-width="4"/>
+            <g id="hat-pedal">
+              <rect x="118" y="588" width="54" height="16" rx="3" fill="url(#pedal)" stroke="#222" stroke-width="1"/>
+              <g id="foot-left">
+                <ellipse cx="145" cy="582" rx="34" ry="18" fill="#e7cbb3" stroke="#1c140e" stroke-width="2.4"/>
+                <ellipse cx="168" cy="570" rx="20" ry="12" fill="#2a2e33" stroke="#111" stroke-width="1.6"/>
+              </g>
             </g>
             <g id="kick-pedal">
-              <rect x="176" y="318" width="40" height="14" rx="4" fill="#2b314d" stroke="#9ba5c9" stroke-width="1.6"/>
+              <rect x="458" y="548" width="54" height="70" rx="6" fill="url(#pedal)" stroke="#222" stroke-width="1.2"/>
+              <path d="M470 568 h30 M470 584 h30 M470 600 h30" stroke="#4d555c" stroke-width="3"/>
               <g id="foot-right">
-                <ellipse cx="196" cy="312" rx="16" ry="9" fill="#d9b08c" stroke="#1e183b" stroke-width="2"/>
-                <ellipse cx="206" cy="306" rx="10" ry="6" fill="#2d3359" stroke="#1e183b" stroke-width="1.6"/>
+                <ellipse cx="485" cy="545" rx="36" ry="18" fill="#e7cbb3" stroke="#1c140e" stroke-width="2.4"/>
+                <ellipse cx="510" cy="532" rx="22" ry="12" fill="#2a2e33" stroke="#111" stroke-width="1.6"/>
               </g>
             </g>
-
-            <g id="piece-snare" filter="url(#soft)">
-              <circle cx="118" cy="300" r="36" fill="#c44732" stroke="#3a140e" stroke-width="8"/>
-              <circle cx="118" cy="300" r="28" fill="url(#head)" stroke="#d7dbe8" stroke-width="3.5"/>
-            </g>
-            <g id="piece-hat" filter="url(#soft)">
-              <circle id="hat-bottom" cx="58" cy="236" r="30" fill="#c9972e" stroke="#3a2a10" stroke-width="3"/>
-              <circle id="hat-top" cx="58" cy="236" r="30" fill="url(#brass)" stroke="#3a2a10" stroke-width="3"/>
-              <circle cx="58" cy="236" r="18" fill="none" stroke="#8a6416" stroke-width="1.3"/>
-              <circle cx="58" cy="236" r="4.5" fill="#f8e7b0" stroke="#3a2a10" stroke-width="1.3"/>
-            </g>
-            <g id="hat-pedal">
-              <rect x="44" y="348" width="28" height="10" rx="3" fill="#2b314d" stroke="#9ba5c9" stroke-width="1.4"/>
-              <line x1="58" y1="266" x2="58" y2="348" stroke="#8b93b0" stroke-width="3"/>
-              <g id="foot-left">
-                <ellipse cx="58" cy="340" rx="14" ry="8" fill="#d9b08c" stroke="#1e183b" stroke-width="2"/>
-                <ellipse cx="66" cy="334" rx="9" ry="5.5" fill="#2d3359" stroke="#1e183b" stroke-width="1.5"/>
-              </g>
-            </g>
-
             <g id="throne">
-              <ellipse cx="196" cy="392" rx="36" ry="16" fill="#241c3a" stroke="#6c47ff" stroke-width="3"/>
-              <ellipse cx="196" cy="388" rx="28" ry="10" fill="#3a315c"/>
+              <ellipse cx="500" cy="700" rx="78" ry="28" fill="#050506" stroke="#2a2d33" stroke-width="3"/>
+              <ellipse cx="500" cy="692" rx="62" ry="20" fill="#1a1c20" stroke="#3a3e46" stroke-width="2"/>
             </g>
-
             <g id="fx-layer" pointer-events="none"></g>
-
             <g id="hand-left" pointer-events="none">
-              <line id="stick-left" x1="0" y1="0" x2="-28" y2="-18" stroke="#e7c56a" stroke-width="5" stroke-linecap="round"/>
-              <circle r="11" fill="#f0c7a8" stroke="#1e183b" stroke-width="2"/>
+              <line x1="8" y1="0" x2="92" y2="0" stroke="#f3e2b8" stroke-width="11" stroke-linecap="round"/>
+              <circle r="26" fill="#f0c7a8" stroke="#1c140e" stroke-width="3"/>
+              <circle cx="-6" cy="-8" r="4" fill="#e7b89a"/>
             </g>
             <g id="hand-right" pointer-events="none">
-              <line id="stick-right" x1="0" y1="0" x2="26" y2="-20" stroke="#e7c56a" stroke-width="5" stroke-linecap="round"/>
-              <circle r="11" fill="#f0c7a8" stroke="#1e183b" stroke-width="2"/>
+              <line x1="8" y1="0" x2="92" y2="0" stroke="#f3e2b8" stroke-width="11" stroke-linecap="round"/>
+              <circle r="26" fill="#f3c9aa" stroke="#1c140e" stroke-width="3"/>
+              <circle cx="-6" cy="-8" r="4" fill="#e7b89a"/>
             </g>
           </svg>
         </div>

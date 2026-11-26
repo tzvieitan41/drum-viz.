@@ -36,20 +36,28 @@
   const fallbackMedia = document.getElementById('fallback-media');
 
   const PIECES = {
-    kick: { x: 196, y: 262, label: 'בס', color: '#ff6b4a', el: 'piece-kick' },
-    snare: { x: 118, y: 300, label: 'סנר', color: '#ffd166', el: 'piece-snare' },
-    hatClosed: { x: 58, y: 236, label: 'היי-האט סגור', color: '#4ecdc4', el: 'piece-hat' },
-    hatOpen: { x: 58, y: 236, label: 'היי-האט פתוח', color: '#9af7ef', el: 'piece-hat' },
-    tomHigh: { x: 156, y: 168, label: 'טום גבוה', color: '#4ecdc4', el: 'piece-tom-high' },
-    tomMid: { x: 224, y: 156, label: 'טום אמצעי', color: '#ffb15e', el: 'piece-tom-mid' },
-    tomFloor: { x: 324, y: 230, label: 'טום רצפה', color: '#6a93ff', el: 'piece-floor' },
-    ride: { x: 332, y: 118, label: 'רייד', color: '#ffe58f', el: 'piece-ride' },
-    crash: { x: 78, y: 78, label: 'קראש', color: '#ffd166', el: 'piece-crash' },
-    crash2: { x: 268, y: 62, label: 'קראש 2', color: '#ff9f6b', el: 'piece-crash2' }
+    kick: { x: 485, y: 430, label: 'בס', color: '#ff6b4a', el: 'piece-kick', cymbal: false },
+    snare: { x: 315, y: 500, label: 'סנר', color: '#ffd166', el: 'piece-snare', cymbal: false },
+    hatClosed: { x: 145, y: 395, label: 'היי-האט סגור', color: '#e7c56a', el: 'piece-hat', cymbal: true },
+    hatOpen: { x: 145, y: 395, label: 'היי-האט פתוח', color: '#fff1c2', el: 'piece-hat', cymbal: true },
+    tomHigh: { x: 400, y: 250, label: 'טום גבוה', color: '#d7dbe4', el: 'piece-tom-high', cymbal: false },
+    tomMid: { x: 545, y: 242, label: 'טום אמצעי', color: '#d7dbe4', el: 'piece-tom-mid', cymbal: false },
+    tomFloor: { x: 770, y: 455, label: 'טום רצפה', color: '#d7dbe4', el: 'piece-floor', cymbal: false },
+    ride: { x: 690, y: 165, label: 'רייד', color: '#f0d078', el: 'piece-ride', cymbal: true },
+    crash: { x: 175, y: 145, label: 'קראש', color: '#f0d078', el: 'piece-crash', cymbal: true },
+    crash2: { x: 865, y: 195, label: 'קראש 2', color: '#e2b15a', el: 'piece-crash2', cymbal: true }
   };
 
-  const handHome = { left: { x: 130, y: 348 }, right: { x: 230, y: 340 } };
+  const handHome = {
+    left: { x: 280, y: 620, aim: { x: 315, y: 500 } },
+    right: { x: 560, y: 610, aim: { x: 690, y: 165 } }
+  };
   const handEl = { left: document.getElementById('hand-left'), right: document.getElementById('hand-right') };
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressLabel = document.getElementById('progress-label');
+  const progressBar = document.getElementById('progress-bar');
+  const drumsOnlyInput = document.getElementById('drums-only');
+  const quickModeInput = document.getElementById('quick-mode');
   const footRight = document.getElementById('foot-right');
   const footLeft = document.getElementById('foot-left');
   const hatTop = document.getElementById('hat-top');
@@ -70,6 +78,8 @@
   let sensitivity = 1;
   let userSyncSec = 0;
   let currentBuffer = null;
+  let fullBuffer = null;
+  let drumBuffer = null;
   let bufferSource = null;
   let isPlaying = false;
   let isLooping = false;
@@ -166,6 +176,14 @@
     const n = Math.round(userSyncSec * 1000);
     syncVal.textContent = (n > 0 ? '+' : '') + n + ' ms';
   });
+  if (drumsOnlyInput) {
+    drumsOnlyInput.addEventListener('change', () => {
+      if (!fullBuffer) return;
+      const at = isPlaying && audioCtx ? Math.max(0, audioCtx.currentTime - startCtxTime) : pauseOffset;
+      currentBuffer = drumsOnlyInput.checked && drumBuffer ? drumBuffer : fullBuffer;
+      if (isPlaying) startBufferFrom(at);
+    });
+  }
 
   function ensureAudio() {
     if (!audioCtx) {
@@ -195,6 +213,104 @@
     });
   }
 
+  function resampleChannel(buffer, channel, targetRate) {
+    const src = buffer.getChannelData(channel);
+    const srcRate = buffer.sampleRate;
+    if (srcRate === targetRate) return new Float32Array(src);
+    const outLen = Math.max(1, Math.floor(src.length * targetRate / srcRate));
+    const out = new Float32Array(outLen);
+    const ratio = srcRate / targetRate;
+    const last = src.length - 1;
+    for (let i = 0; i < outLen; i++) {
+      const x = i * ratio;
+      const i0 = x | 0;
+      if (i0 >= last) { out[i] = src[last]; continue; }
+      const f = x - i0;
+      out[i] = src[i0] * (1 - f) + src[i0 + 1] * f;
+    }
+    return out;
+  }
+
+  function songKey(buffer) {
+    const ch = buffer.getChannelData(0);
+    let h = buffer.length >>> 0;
+    const step = Math.max(1, Math.floor(ch.length / 48));
+    for (let i = 0; i < ch.length; i += step) h = Math.imul(h ^ (Math.round(ch[i] * 1e6) | 0), 16777619);
+    return 'umxhq-v1-' + buffer.sampleRate + '-' + buffer.numberOfChannels + '-' + (h >>> 0);
+  }
+
+  function idbStore() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('drumviz', 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore('stems'); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function showProgress(text, frac) {
+    if (!progressWrap) return;
+    progressWrap.hidden = false;
+    progressLabel.textContent = text;
+    progressBar.style.width = Math.max(0, Math.min(100, Math.round(frac * 100))) + '%';
+  }
+  function hideProgress() {
+    if (progressWrap) progressWrap.hidden = true;
+  }
+
+  function bufferFromStereo(left, right, sampleRate) {
+    const ctx = ensureAudio();
+    const audio = ctx.createBuffer(2, left.length, sampleRate);
+    audio.copyToChannel(left, 0);
+    audio.copyToChannel(right, 1);
+    return audio;
+  }
+
+  function separateDrums(audioBuffer) {
+    const token = analysisToken;
+    return new Promise(async (resolve) => {
+      try {
+        const db = await idbStore();
+        const key = songKey(audioBuffer);
+        const cached = await new Promise((res) => {
+          const tx = db.transaction('stems', 'readonly');
+          const req = tx.objectStore('stems').get(key);
+          req.onsuccess = () => res(req.result || null);
+          req.onerror = () => res(null);
+        });
+        if (cached && cached.left && cached.right) {
+          showProgress('מפריד את התופים… 100%', 1);
+          resolve(bufferFromStereo(cached.left, cached.right, cached.sampleRate || 44100));
+          return;
+        }
+        const left = resampleChannel(audioBuffer, 0, 44100);
+        const right = audioBuffer.numberOfChannels > 1 ? resampleChannel(audioBuffer, 1, 44100) : left.slice();
+        const worker = new Worker('./separator-worker.js');
+        const timer = setTimeout(() => { try { worker.terminate(); } catch (_) {} resolve(null); }, 180000);
+        worker.onmessage = async (event) => {
+          const data = event.data || {};
+          if (data.type === 'progress') {
+            showProgress('מפריד את התופים… ' + Math.round((data.progress || 0) * 100) + '%', data.progress || 0);
+            return;
+          }
+          clearTimeout(timer);
+          try { worker.terminate(); } catch (_) {}
+          if (data.type !== 'done' || token !== analysisToken) { resolve(null); return; }
+          try {
+            const tx = db.transaction('stems', 'readwrite');
+            tx.objectStore('stems').put({ left: data.left, right: data.right, sampleRate: data.sampleRate }, key);
+          } catch (_) {}
+          resolve(bufferFromStereo(data.left, data.right, data.sampleRate));
+        };
+        worker.onerror = () => { clearTimeout(timer); try { worker.terminate(); } catch (_) {} resolve(null); };
+        worker.postMessage({ id: token, left, right }, [left.buffer, right.buffer]);
+      } catch (err) {
+        console.error(err);
+        resolve(null);
+      }
+    });
+  }
+
   function mixdown(buffer) {
     const n = buffer.length;
     const ch = buffer.numberOfChannels;
@@ -209,13 +325,16 @@
   }
 
   function audibleContextTime() {
+    const now = audioCtx.currentTime;
+    const latency = Math.min(0.5, (audioCtx.outputLatency || 0) + (audioCtx.baseLatency || 0));
     if (audioCtx.getOutputTimestamp) {
       const ts = audioCtx.getOutputTimestamp();
-      if (ts && Number.isFinite(ts.contextTime) && Number.isFinite(ts.performanceTime)) {
-        return ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+      if (ts && Number.isFinite(ts.contextTime) && Number.isFinite(ts.performanceTime) && ts.performanceTime > 0) {
+        const derived = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+        if (Math.abs(derived - now) < 1.5) return derived;
       }
     }
-    return audioCtx.currentTime - (audioCtx.outputLatency || 0) - (audioCtx.baseLatency || 0);
+    return now - latency;
   }
 
   function visualSongTime() {
@@ -354,7 +473,9 @@
     });
   }
 
-  async function beginTimeline(buffer, title, looping) {
+  async function beginTimeline(buffer, title, looping, quick) {
+    fullBuffer = buffer;
+    drumBuffer = null;
     currentBuffer = buffer;
     mode = looping ? 'demo' : 'file';
     isLooping = looping;
@@ -364,12 +485,28 @@
     hitCounterEl.textContent = 'מכות: 0';
     hitLog.length = 0;
     useTimeline = true;
-    const mono = mixdown(buffer);
-    candidates = await runAnalysis(mono, buffer.sampleRate);
-    if (currentBuffer !== buffer) return;
+    let detectFrom = buffer;
+    const wantModel = !quick && !(quickModeInput && quickModeInput.checked);
+    if (wantModel) {
+      showProgress('מפריד את התופים… 0%', 0);
+      const stem = await separateDrums(buffer);
+      hideProgress();
+      if (fullBuffer !== buffer) return;
+      if (stem) {
+        drumBuffer = stem;
+        detectFrom = stem;
+        if (drumsOnlyInput && drumsOnlyInput.checked) currentBuffer = stem;
+      } else {
+        showToast('ההפרדה לא עלתה. ממשיכים במצב מהיר.');
+      }
+    }
+    const mono = mixdown(detectFrom);
+    candidates = await runAnalysis(mono, detectFrom.sampleRate);
+    if (fullBuffer !== buffer) return;
     activeHits = assignHands(window.DrumAnalyzer.selectHits(candidates, sensitivity));
     startBufferFrom(0);
     startLoop();
+    hideProgress();
   }
 
   btnDemo.addEventListener('click', async () => {
@@ -382,7 +519,7 @@
     try {
       const resp = await fetch('./demo-beat.wav');
       const audio = await decodeAudio(ctx, await resp.arrayBuffer());
-      await beginTimeline(audio, 'מקצב דמו (115 BPM)', true);
+      await beginTimeline(audio, 'מקצב דמו (115 BPM)', true, true);
     } catch (err) {
       console.error(err);
       showToast('לא הצלחתי לטעון את קובץ הדמו');
@@ -554,18 +691,18 @@
       if (h.hand !== side) continue;
       if (h.time >= time - 0.06 && h.time <= time + 0.16) { hit = h; break; }
     }
-    if (!hit) return home;
+    if (!hit) return { x: home.x, y: home.y, aim: { x: 485, y: 360 } };
     const target = PIECES[hit.piece];
     const lead = 0.14;
     const dt = hit.time - time;
-    if (dt > lead) return home;
+    if (dt > lead) return { x: home.x, y: home.y, aim: { x: 485, y: 360 } };
     if (dt > 0.01) {
       const p = (lead - dt) / (lead - 0.01);
       const e = p * p * (3 - 2 * p);
-      return { x: home.x + (target.x - home.x) * e, y: home.y + (target.y - home.y) * e };
+      return { x: home.x + (target.x - home.x) * e, y: home.y + (target.y - home.y) * e, aim: target };
     }
     const rebound = Math.min(1, Math.max(0, -dt) / 0.06);
-    return { x: target.x, y: target.y - rebound * 10 };
+    return { x: target.x, y: target.y - rebound * 12, aim: target };
   }
 
   function render(dt) {
@@ -579,8 +716,9 @@
       const el = document.getElementById(meta.el);
       if (!el || name === 'hatOpen') return;
       const amount = name === 'hatClosed' ? Math.max(flash.hatClosed || 0, flash.hatOpen || 0) : (flash[name] || 0);
-      const s = 1 + amount * 0.07;
-      el.setAttribute('transform', 'translate(' + meta.x + ' ' + meta.y + ') scale(' + s.toFixed(3) + ') translate(' + (-meta.x) + ' ' + (-meta.y) + ')');
+      const s = 1 + amount * 0.045;
+      const wob = meta.cymbal ? Math.sin(performance.now() / 70 + meta.x) * amount * 7 : 0;
+      el.setAttribute('transform', 'translate(' + meta.x + ' ' + meta.y + ') rotate(' + wob.toFixed(2) + ') scale(' + s.toFixed(3) + ') translate(' + (-meta.x) + ' ' + (-meta.y) + ')');
       el.style.filter = amount > 0.08 ? 'drop-shadow(0 0 ' + (amount * 10).toFixed(1) + 'px ' + meta.color + ')' : '';
     });
     if (hatTop) {
@@ -591,8 +729,11 @@
     if (useTimeline && isPlaying) fireDue(t);
     const left = useTimeline ? placeHand('left', t) : handHome.left;
     const right = useTimeline ? placeHand('right', t) : handHome.right;
-    if (handEl.left) handEl.left.setAttribute('transform', 'translate(' + left.x.toFixed(1) + ' ' + left.y.toFixed(1) + ')');
-    if (handEl.right) handEl.right.setAttribute('transform', 'translate(' + right.x.toFixed(1) + ' ' + right.y.toFixed(1) + ')');
+    function aim(hand) {
+      return Math.atan2(hand.aim.y - hand.y, hand.aim.x - hand.x) * 180 / Math.PI;
+    }
+    if (handEl.left) handEl.left.setAttribute('transform', 'translate(' + left.x.toFixed(1) + ' ' + left.y.toFixed(1) + ') rotate(' + aim(left).toFixed(1) + ')');
+    if (handEl.right) handEl.right.setAttribute('transform', 'translate(' + right.x.toFixed(1) + ' ' + right.y.toFixed(1) + ') rotate(' + aim(right).toFixed(1) + ')');
 
     let kickSoon = 0;
     let hatPress = 1 - hatOpen;
@@ -606,7 +747,7 @@
         }
       }
     }
-    if (footRight) footRight.setAttribute('transform', 'translate(196 312) rotate(' + (kickSoon * 18).toFixed(1) + ') translate(-196 -312)');
+    if (footRight) footRight.setAttribute('transform', 'translate(485 545) rotate(' + (kickSoon * 16).toFixed(1) + ') translate(-485 -545)');
     if (footLeft) {
       const lift = (1 - hatPress) * -10;
       footLeft.setAttribute('transform', 'translate(0 ' + lift.toFixed(1) + ')');
@@ -679,8 +820,12 @@
   function frame(now) {
     const dt = Math.min(40, Math.max(8, now - lastFrame));
     lastFrame = now;
-    if (mode === 'mic' || mediaMode) analyzeMic(now);
-    render(dt);
+    try {
+      if (mode === 'mic' || mediaMode) analyzeMic(now);
+      render(dt);
+    } catch (err) {
+      console.error(err);
+    }
     if (!screenStage.hidden) rafId = requestAnimationFrame(frame);
     else rafId = null;
   }

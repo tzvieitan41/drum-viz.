@@ -1,4 +1,4 @@
-const CACHE_NAME = 'instrument-viz-v4';
+const CACHE_NAME = 'instrument-viz-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   './app.js',
   './analyzer.js',
   './analyzer-worker.js',
+  './separator-worker.js',
   './manifest.json',
   './demo-beat.wav',
   './icon-192.png',

@@ -1,6 +1,6 @@
 // Offline cache for the drum app. Network first (so updates arrive), cache as fallback.
 // The 35 MB separation model is cached by separator-worker.js itself (cache "drum-models-v1"), not here.
-const CACHE = 'drummer-v12';
+const CACHE = 'drummer-v13';
 const ASSETS = ['./', './index.html', './app.js', './kit.jpg', './separator-worker.js',
   './vendor/ort.wasm.min.js', './manifest.webmanifest',
   './sounds/kick.wav', './sounds/snare.wav', './sounds/hh.wav', './sounds/t1.wav', './sounds/t2.wav', './sounds/ft.wav',

@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});
  const p=await b.newPage({viewport:{width:375,height:667},deviceScaleFactor:2}); const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
- await p.goto('http://localhost:8766/index.html'); await p.setInputFiles('#file','hard112.wav');
+ await p.addInitScript(()=>{ try{localStorage.setItem('introSeen','1');}catch(e){} }); await p.goto('http://localhost:8766/index.html'); await p.setInputFiles('#file','hard112.wav');
  await p.waitForTimeout(1500); await p.screenshot({path:'shot-separating.png'});
  await p.waitForFunction(()=>__drum.hits.length>0&&document.getElementById('overlay').hidden,{timeout:600000});
  await p.click('#playBtn'); await p.waitForTimeout(1500);

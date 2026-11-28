@@ -318,6 +318,7 @@ function updateClock(){
         if(Math.abs(h2-heard)<0.5) heard=h2;
       } }catch(e){}
   }
+  S.diag={ol:c.outputLatency, bl:c.baseLatency, simple:c.currentTime-(c.outputLatency||0)-(c.baseLatency||0), ts:heard, sr:c.sampleRate};
   var off=heard-now/1000;
   if(S.clkOff===null || Math.abs(off-S.clkOff)>0.08) S.clkOff=off; else S.clkOff+=0.04*(off-S.clkOff);
 }
@@ -556,6 +557,17 @@ function loop(ts){
   render(v);
 }
 
+// technical details for diagnosing sync on a real phone: tap the word "סנכרון"
+$('syncTitle').addEventListener('click', function(){ $('diag').hidden=!$('diag').hidden; });
+setInterval(function(){
+  if($('diag').hidden) return;
+  var d=S.diag||{}, c=S.ctx, f=function(x){ return (x===undefined||x===null)?'n/a':(Math.round(x*1000))+'ms'; };
+  var ua=navigator.userAgent.match(/OS (\d+_\d+)|Version\/([\d.]+)/g)||[];
+  $('diag').textContent='outputLatency '+f(d.ol)+'  baseLatency '+f(d.bl)+'\n'+
+    'timestamp vs simple '+(d.ts!==undefined?Math.round((d.ts-d.simple)*1000)+'ms':'n/a')+'  getOutputTimestamp '+(c&&c.getOutputTimestamp?'yes':'no')+'\n'+
+    'rate '+(d.sr||'-')+'  state '+(c?c.state:'-')+'  frame '+S.frameMs.toFixed(1)+'ms  sync '+S.syncMs+'ms\n'+
+    'separation '+(S.sepOk?'yes':'no')+'  hits '+S.hits.length+'  '+ua.join(' ');
+}, 400);
 buildKit(); clearTimeline(); paintRange(seekEl); requestAnimationFrame(loop);
 document.addEventListener('visibilitychange', function(){ if(!document.hidden && S.ctx && S.playing && S.ctx.state!=='running') S.ctx.resume(); });
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){

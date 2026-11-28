@@ -76,6 +76,8 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;bac
 .sync .row{display:flex;justify-content:space-between;align-items:center;font-weight:700}
 .sync output{font-variant-numeric:tabular-nums;color:var(--accent2);direction:ltr;unicode-bidi:isolate}
 .sync .row button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;font:inherit;font-size:12px;padding:4px 8px;margin-inline-start:8px}
+.diag{direction:ltr;text-align:left;font:11.5px ui-monospace,Menlo,monospace;color:var(--muted);background:#0d1017;border-radius:8px;padding:6px 8px;margin:4px 0;white-space:pre-wrap}
+.diag[hidden]{display:none}
 .hint{font-size:11.5px;color:var(--muted);text-align:center;margin-top:-2px}
 #msg{font-size:13px;color:#ff9d7a;text-align:center;min-height:0}
 #sync{width:100%}
@@ -127,8 +129,9 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;bac
   </div>
 
   <div class="sync">
-    <div class="row"><span>סנכרון</span><span><output id="syncVal">0 ms</output><button id="calBtn" type="button">כיול בהקשות</button><button id="syncReset" type="button">איפוס</button></span></div>
+    <div class="row"><span id="syncTitle">סנכרון</span><span><output id="syncVal">0 ms</output><button id="calBtn" type="button">כיול בהקשות</button><button id="syncReset" type="button">איפוס</button></span></div>
     <input type="range" id="sync" min="-200" max="200" step="5" value="0" aria-label="סנכרון">
+    <div id="diag" class="diag" hidden></div>
     <div class="hint">ימינה = התופים מאחרים · באוזניות בלוטות׳ לחץ "כיול בהקשות"</div>
   </div>
 </div>

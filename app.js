@@ -125,7 +125,7 @@ function loadFile(file){
   }).then(function(buf){
     if(token!==S.fileToken) return;
     if(!buf || buf.duration<0.5){ startLive(file); return; }
-    S.mode='buffer'; S.buffer=buf; S.duration=buf.duration; S.offset=0;
+    S.mode='buffer'; S.buffer=buf; S.duration=buf.duration; S.offset=0; S.songKey=songKey(buf); S.songName=file.name;
     // 1) separate the drums from the rest of the song (AI model, runs on the phone)
     return separateDrums(buf, token).then(function(stem){
       if(token!==S.fileToken) return;
@@ -145,7 +145,7 @@ function loadFile(file){
       });
     }).then(function(res){
       if(!res || token!==S.fileToken) return;
-      S.hits=res.hits; S.bpm=res.bpm; buildTimeline(); overlay(false); enableControls(true); updateInfo();
+      S.hits=res.hits; S.bpm=res.bpm; loadCorrections(); buildTimeline(); overlay(false); enableControls(true); updateInfo();
     });
   }).catch(function(err){
     if(token!==S.fileToken) return;
@@ -354,7 +354,7 @@ function heardPos(perfMs){
 }
 
 // ---------------- playback ----------------
-function enableControls(on){ ['playBtn','stopBtn','seek'].forEach(function(id){ $(id).disabled=!on; }); }
+function enableControls(on){ ['playBtn','stopBtn','seek'].forEach(function(id){ $(id).disabled=!on; }); $('editBtn').disabled=!on || S.mode!=='buffer'; }
 function play(){
   var c=ensureCtx(); if(c.state!=='running') c.resume();
   if(S.mode==='buffer'){
@@ -657,8 +657,114 @@ function hitPad(id){
 }
 document.addEventListener('touchend', function(){ loadPads(); }, {once:true, passive:true});
 $('kit').addEventListener('pointerdown', function(e){
-  var id=padAt(e.clientX,e.clientY); if(!id) return; e.preventDefault(); hitPad(id);
+  var id=padAt(e.clientX,e.clientY); if(!id) return; e.preventDefault();
+  if(!$('editSheet').hidden && ED.sel){ toggleDrum(norm(PAD_D[id])); return; }
+  hitPad(id);
 });
+// ---------------- correcting hits ----------------
+// Corrections are saved per song on this phone and re-applied when the song is opened again.
+// "Send corrections" shares a small file: times, drum labels and each hit's 46-number fingerprint — no audio.
+var ED={sel:null, center:0};
+var ED_NAMES=['בס','סנר','היי-האט סגור','היי-האט פתוח','טום גבוה','טום אמצעי','טום רצפה','רייד','קראש'];
+var ED_SHORT=['בס','סנר','HH','HH פתוח','טום 1','טום 2','טום רצפה','רייד','קראש'];
+S.corr=[];
+function corrKey(){ return 'drumcorr:'+(S.songKey||''); }
+function saveCorrections(){ try{ localStorage.setItem(corrKey(), JSON.stringify(S.corr)); }catch(e){} $('edCount').textContent=S.corr.length; }
+function loadCorrections(){
+  S.corr=[]; try{ S.corr=JSON.parse(localStorage.getItem(corrKey())||'[]'); }catch(e){}
+  S.corr.forEach(function(c){ replaceAt(c.t, c.after); });
+  $('edCount').textContent=S.corr.length;
+}
+function norm(d){ return d===9?8:d; }
+function groupAt(t){ return S.hits.filter(function(h){ return Math.abs(h.t-t)<0.025; }); }
+function replaceAt(t, set){
+  S.hits=S.hits.filter(function(h){ return Math.abs(h.t-t)>=0.025; });
+  set.forEach(function(d){ S.hits.push({t:t, d:d, v:0.85}); });
+  S.hits.sort(function(a,b){ return a.t-b.t || a.d-b.d; });
+}
+function groupsAround(t0,t1){
+  var out=[]; S.hits.forEach(function(h){ if(h.t<t0||h.t>t1) return; var g=out[out.length-1];
+    if(g && h.t-g.t<0.025){ if(g.ds.indexOf(norm(h.d))<0) g.ds.push(norm(h.d)); } else out.push({t:h.t, ds:[norm(h.d)]}); });
+  return out;
+}
+function isFixed(t){ return S.corr.some(function(c){ return Math.abs(c.t-t)<0.025; }); }
+function showAt(t){ S.offset=Math.max(0,t+0.06+S.syncMs/1000); resetPointers(); }
+function fmtT(t){ var m=Math.floor(t/60), s=(t%60); return m+':'+(s<10?'0':'')+s.toFixed(2); }
+function openEdit(){
+  if(S.mode!=='buffer' || !S.hits.length) return;
+  if(S.playing) pause();
+  ED.center=Math.max(0,S.offset-S.syncMs/1000); ED.sel=null;
+  $('editSheet').hidden=false; renderEdit();
+}
+function closeEdit(){ $('editSheet').hidden=true; ED.sel=null; }
+function renderEdit(){
+  var gs=groupsAround(ED.center-1.6, ED.center+0.6), list=$('hitList'); list.textContent='';
+  if(ED.sel && !gs.some(function(g){ return Math.abs(g.t-ED.sel.t)<0.025; }) && !ED.sel.added) ED.sel=null;
+  if(!ED.sel && gs.length){ var best=gs[0]; gs.forEach(function(g){ if(Math.abs(g.t-ED.center)<Math.abs(best.t-ED.center)) best=g; }); ED.sel=best; showAt(best.t); }
+  if(ED.sel && ED.sel.added && !gs.some(function(g){ return Math.abs(g.t-ED.sel.t)<0.025; })) gs.push(ED.sel), gs.sort(function(a,b){return a.t-b.t;});
+  if(!gs.length){ var e=document.createElement('div'); e.className='empty'; e.textContent='אין מכות בקטע הזה'; list.appendChild(e); }
+  gs.forEach(function(g){
+    var b=document.createElement('button'); b.type='button';
+    var tm=document.createElement('span'); tm.className='tm'; tm.textContent=fmtT(g.t); b.appendChild(tm);
+    b.appendChild(document.createTextNode(g.ds.length? g.ds.map(function(d){return ED_SHORT[d];}).join(' + ') : 'אין מכה'));
+    if(ED.sel && Math.abs(ED.sel.t-g.t)<0.025) b.className='sel';
+    if(isFixed(g.t)) b.className+=' fixed';
+    b.addEventListener('click', function(){ ED.sel=g; showAt(g.t); renderEdit(); });
+    list.appendChild(b);
+  });
+  var cur=ED.sel ? groupsAround(ED.sel.t-0.02, ED.sel.t+0.02)[0] : null, ds=cur?cur.ds:[];
+  Array.prototype.forEach.call($('drumGrid').children, function(btn){ var d=+btn.dataset.d; btn.disabled=!ED.sel; btn.setAttribute('aria-pressed', ds.indexOf(d)>=0?'true':'false'); });
+  $('edTime').textContent=fmtT(ED.center);
+  $('edListen').disabled=!ED.sel;
+  var sl=list.querySelector('.sel'); if(sl && sl.scrollIntoView) sl.scrollIntoView({inline:'center', block:'nearest'});
+}
+ED_NAMES.forEach(function(n,d){ var b=document.createElement('button'); b.type='button'; b.dataset.d=d; b.textContent=n; b.addEventListener('click', function(){ toggleDrum(d); }); $('drumGrid').appendChild(b); });
+function toggleDrum(d){
+  if(!ED.sel) return;
+  var t=ED.sel.t, grp=groupAt(t), before=grp.map(function(h){return norm(h.d);}), set=before.filter(function(x,i,a){return a.indexOf(x)===i;});
+  var i=set.indexOf(d); if(i>=0) set.splice(i,1); else set.push(d);
+  if(d===2 && i<0) set=set.filter(function(x){return x!==3;}); if(d===3 && i<0) set=set.filter(function(x){return x!==2;});
+  var fx=null; grp.forEach(function(h){ if(h.x && !fx) fx=h.x; });
+  var c=S.corr.filter(function(c){ return Math.abs(c.t-t)<0.025; })[0];
+  if(!c){ c={t:Math.round(t*10000)/10000, before:set.length&&i<0?before:before, after:[], x:fx}; S.corr.push(c); }
+  c.after=set.slice().sort();
+  replaceAt(t, set); if(fx) groupAt(t).forEach(function(h){ h.x=fx; });
+  buildTimeline(); saveCorrections(); ED.sel={t:t, ds:set, added:ED.sel.added && !set.length}; showAt(t);
+  hitPadQuiet(d, i<0);
+  renderEdit();
+}
+function hitPadQuiet(d, on){ if(!on) return; var id=['kick','snare','hh','hh','t1','t2','ft','ride','c1'][d]; if(id) hitPad(id); }
+$('editBtn').addEventListener('click', openEdit);
+$('edDone').addEventListener('click', closeEdit);
+$('edPrev').addEventListener('click', function(){ ED.center=Math.max(0,ED.center-1); ED.sel=null; showAt(ED.center); renderEdit(); });
+$('edNext').addEventListener('click', function(){ ED.center=Math.min(S.duration,ED.center+1); ED.sel=null; showAt(ED.center); renderEdit(); });
+$('edAdd').addEventListener('click', function(){ var t=Math.round(ED.center*1000)/1000; ED.sel={t:t, ds:[], added:true}; showAt(t); renderEdit(); $('edHint').textContent='סמן את התופים של המכה החסרה. אפשר גם להקיש עליהם בתמונה.'; });
+var snipTimer=null;
+$('edListen').addEventListener('click', function(){
+  if(!ED.sel) return; var t=ED.sel.t; clearTimeout(snipTimer);
+  S.offset=Math.max(0,t-1.0+S.syncMs/1000); play();
+  snipTimer=setTimeout(function(){ if(S.playing) pause(); showAt(t); }, 1400);
+});
+$('edShare').addEventListener('click', function(){
+  if(!S.corr.length){ setMsg('עוד אין תיקונים לשלוח.'); return; }
+  var data={app:'drum-viz', kind:'hit-corrections', version:1, created:new Date().toISOString(),
+    song:{name:S.songName||'', duration:Math.round(S.duration*100)/100, bpm:S.bpm, hits:S.hits.length},
+    labels:['kick','snare','hh_closed','hh_open','tom_high','tom_mid','tom_floor','ride','crash'],
+    corrections:S.corr};
+  var name='drum-corrections-'+new Date().toISOString().slice(0,10)+'.json', blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  var file=null; try{ file=new File([blob],name,{type:'application/json'}); }catch(e){}
+  if(file && navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file], title:'תיקוני מכות'}).catch(function(){});
+  } else {
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+});
+// ---------------- first-visit introduction ----------------
+function showIntro(){ $('intro').hidden=false; }
+$('introOk').addEventListener('click', function(){ $('intro').hidden=true; try{ localStorage.setItem('introSeen','1'); }catch(e){} });
+$('helpBtn').addEventListener('click', showIntro);
+try{ if(!localStorage.getItem('introSeen')) showIntro(); }catch(e){ showIntro(); }
+
 buildKit(); clearTimeline(); paintRange(seekEl); requestAnimationFrame(loop);
 document.addEventListener('visibilitychange', function(){ if(!document.hidden && S.ctx && S.playing && S.ctx.state!=='running') S.ctx.resume(); });
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){

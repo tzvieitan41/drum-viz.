@@ -89,12 +89,41 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;bac
   .round{width:56px;height:56px} .round.big{width:66px;height:66px} .round.big svg{width:30px;height:30px}
   .sync{padding:6px 12px 4px} h1{font-size:17px} #fname{min-height:14px;font-size:12px}
 }
+.hdr{display:flex;align-items:center;gap:8px}
+.help{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-weight:700}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--panel);border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+  padding:10px max(14px,env(safe-area-inset-left)) calc(env(safe-area-inset-bottom) + 10px);max-width:440px;margin:0 auto;box-shadow:0 -10px 30px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:8px}
+.sheet[hidden]{display:none}
+.sheetHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sheetHead .nav{display:flex;align-items:center;gap:6px;direction:ltr;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sheetHead .nav button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:20px}
+.sheetHead .done{border:0;border-radius:10px;background:var(--accent);color:#1b1205;font:inherit;font-weight:700;padding:8px 14px}
+.hitList{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;direction:ltr}
+.hitList button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:6px 8px;font:inherit;font-size:12.5px;text-align:center;min-width:74px}
+.hitList button .tm{display:block;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.hitList button.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.hitList button.fixed{background:#24301f}
+.hitList .empty{color:var(--muted);font-size:13px;padding:8px}
+.edHint{font-size:12px;color:var(--muted);text-align:center}
+.drumGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.drumGrid button{min-height:42px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;font:inherit;font-size:13.5px;font-weight:600}
+.drumGrid button[aria-pressed="true"]{background:var(--accent);color:#1b1205;border-color:var(--accent)}
+.drumGrid button:disabled{opacity:.35}
+.edActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.edActions button{min-height:42px;border:1px solid var(--line);background:none;color:var(--accent2);border-radius:10px;font:inherit;font-size:12.5px;font-weight:700}
+.intro{position:fixed;inset:0;z-index:30;background:rgba(6,8,12,.86);display:flex;align-items:center;justify-content:center;padding:16px}
+.intro[hidden]{display:none}
+.introCard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 14px;max-width:400px;max-height:90vh;overflow:auto}
+.introCard h2{margin:0 0 8px;font-size:19px}
+.introCard ol{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:8px;font-size:14.5px;line-height:1.45;color:#d7dae3}
+.introCard b{color:var(--accent2)}
+.introOk{width:100%;margin-top:14px;background:var(--accent);color:#1b1205}
 #media{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>מתופף וירטואלי</h1><div id="info"></div></header>
+  <header><h1>מתופף וירטואלי</h1><div class="hdr"><div id="info"></div><button id="helpBtn" class="help" type="button" aria-label="איך משתמשים">?</button></div></header>
 
   <div id="stage">
     <svg id="kit" viewBox="74 2 412 284" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="מערכת תופים"></svg>
@@ -126,6 +155,7 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;bac
       <svg id="icPlay" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
       <svg id="icPause" viewBox="0 0 24 24" style="display:none"><rect x="6" y="5" width="4.5" height="14" rx="1.2"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.2"/></svg>
     </button>
+    <button class="btn round" id="editBtn" aria-label="תיקון מכות" disabled><svg viewBox="0 0 24 24"><path d="M4 17.25V20h2.75L17.8 8.94l-2.75-2.75L4 17.25zm15.71-9.04a1 1 0 0 0 0-1.41l-2.5-2.5a1 1 0 0 0-1.41 0l-1.34 1.34 3.91 3.91 1.34-1.34z"/></svg></button>
   </div>
 
   <div id="listen" class="listen" role="group" aria-label="מה לשמוע" hidden>
@@ -139,6 +169,36 @@ input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;bac
     <input type="range" id="sync" min="-200" max="200" step="5" value="0" aria-label="סנכרון">
     <div id="diag" class="diag" hidden></div>
     <div class="hint">ימינה = התופים מאחרים · באוזניות בלוטות׳ לחץ "כיול בהקשות"</div>
+  </div>
+</div>
+
+<div id="editSheet" class="sheet" hidden role="dialog" aria-label="תיקון מכות">
+  <div class="sheetHead">
+    <strong>תיקון מכות</strong>
+    <span class="nav"><button type="button" id="edPrev" aria-label="שנייה אחורה">›</button><span id="edTime">0:00.0</span><button type="button" id="edNext" aria-label="שנייה קדימה">‹</button></span>
+    <button type="button" id="edDone" class="done">סיום</button>
+  </div>
+  <div id="hitList" class="hitList"></div>
+  <div class="edHint" id="edHint">בחר מכה מהרשימה, ואז סמן אילו תופים באמת נוגנו בה.</div>
+  <div id="drumGrid" class="drumGrid"></div>
+  <div class="edActions">
+    <button type="button" id="edListen">▶ השמע את המכה</button>
+    <button type="button" id="edAdd">+ מכה חסרה כאן</button>
+    <button type="button" id="edShare">שלח תיקונים (<span id="edCount">0</span>)</button>
+  </div>
+</div>
+
+<div id="intro" class="intro" hidden role="dialog" aria-label="איך משתמשים">
+  <div class="introCard">
+    <h2>ברוך הבא למתופף הווירטואלי</h2>
+    <ol>
+      <li><b>בחר שיר או וידאו</b> מהטלפון. האפליקציה מפרידה את התופים ומזהה כל מכה. בפעם הראשונה שפותחים שיר זה לוקח קצת זמן.</li>
+      <li><b>לחץ ▶</b> וצפה במערכת מנגנת יחד עם השיר. "רק תופים" ו"בלי תופים" משנים מה שומעים.</li>
+      <li><b>הקש על התופים בתמונה</b> כדי לנגן בעצמך, גם יחד עם השיר.</li>
+      <li><b>אוזניות בלוטות'?</b> לחץ "כיול בהקשות" כדי שהתמונה תתאים לצליל.</li>
+      <li><b>ראית מכה לא נכונה?</b> לחץ ✎, תקן, ושלח לנו את התיקונים. כך האפליקציה לומדת להיות מדויקת יותר.</li>
+    </ol>
+    <button type="button" id="introOk" class="btn introOk">יאללה, מתחילים</button>
   </div>
 </div>
 
@@ -175,7 +235,7 @@ function analyze(input, inSr){
   var tempo = beatTrack(env.odf);     progress(0.96);
   snapToGrid(hits, tempo.beats);
   hits.sort(function(a,b){return a.t-b.t || a.d-b.d;});
-  var out = hits.map(function(h){ return {t:Math.round(h.t*10000)/10000, d:h.d, v:Math.round(h.v*100)/100}; });
+  var out = hits.map(function(h){ var o={t:Math.round(h.t*10000)/10000, d:h.d, v:Math.round(h.v*100)/100}; if(h.x) o.x=h.x.map(function(v){return Math.round(v*1e4)/1e4;}); return o; });
   progress(1);
   return {hits:out, bpm:tempo.bpm, onsets:frames.map(function(f){return Math.round(f*HOP/SR*1000)/1000;})};
 }
@@ -402,11 +462,12 @@ function classify(frames, spec, Sp, env){
       var pc=Math.max(pr[2],pr[3],pr[7],pr[8]); cymbal = pc>0.5 && !(snare && !(pr[1]>0.5) && pc<0.8); if(cymbal) cymCls = pr[2]===pc?2:(pr[3]===pc?3:(pr[7]===pc?7:8));
     }
     if(!kick && !snare && !tom && !cymbal) return;
-    var lowOnly = kick && !snare && !cymbal && !tom;
+    var lowOnly = kick && !snare && !cymbal && !tom, n0=hits.length;
     if(kick) hits.push({t:tS, d:0, v:vel(low), lp:lowOnly});
     if(snare) hits.push({t:tS, d:1, v:vel(Math.max(mid,mh)), lp:false});
     if(tom){ var h={t:tS, d:tomCls>0?tomCls:5, v:vel(Math.max(lmid,mid,low)), lp:false, pitch:e.pitch, fixed:tomCls>0}; hits.push(h); if(!h.fixed) toms.push(h); }
-    if(cymbal){ var c={t:tS, d:cymCls>0?cymCls:2, v:vel(hi), lp:false, tau:e.tau, r60:e.r60, hi:hi, ring:e.dec[4], fixed:cymCls>0}; hits.push(c); if(!c.fixed) cymIdx.push(c); else if(c.d===8) crashFixed.push(c); }
+    if(STEM) for(var hx=n0;hx<hits.length;hx++) hits[hx].x=e.x;
+    if(cymbal){ var c={t:tS, d:cymCls>0?cymCls:2, v:vel(hi), lp:false, tau:e.tau, r60:e.r60, hi:hi, ring:e.dec[4], fixed:cymCls>0}; if(STEM) c.x=e.x; hits.push(c); if(!c.fixed) cymIdx.push(c); else if(c.d===8) crashFixed.push(c); }
   });
   // toms -> high / mid / floor by relative pitch
   if(toms.length){

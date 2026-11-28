@@ -17,7 +17,7 @@ var X_OF  = {1:197,2:117,3:117,4:221,5:285,6:350,7:355,8:150,9:431};
 var PREF  = {1:'L',2:'R',3:'R',4:'L',5:'R',6:'R',7:'R',8:'R',9:'R'};
 var PRIO  = {1:0,8:1,9:1,4:2,5:2,6:2,7:3,2:4,3:4};
 var HANDS = { L:{sh:[214,296], rest:[204,180]}, R:{sh:[304,296], rest:[142,142]} };
-var STICK = 84;
+var STICK = 92;
 var KPEDAL = {x:258, y:214}, HPEDAL = {x:155, y:233, rot:-40};
 
 // ---------------- SVG kit built on the photo ----------------
@@ -54,16 +54,12 @@ function shoeSVG(id){
     '<path d="M-6 8 C-6 15 6 15 6 8" fill="none" stroke="#4a505c" stroke-width=".8"/></g></g>';
 }
 function handSVG(k){
+  // sticks only: a wooden stick with a shadow on the kit and a rounded tip
   return '<g id="hand'+k+'">'+
     '<line class="shadow" stroke="#000" stroke-width="4" stroke-linecap="round" opacity=".4"/>'+
-    '<path class="arm" fill="url(#gSleeve)" stroke="#05060a" stroke-width=".8"/>'+
-    '<path class="armHi" fill="none" stroke="#3a404c" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>'+
-    '<line class="stick" stroke="#cfa66a" stroke-width="3.6" stroke-linecap="round"/>'+
-    '<line class="stickHi" stroke="#f2d9a6" stroke-width="1.1" stroke-linecap="round" opacity=".9"/>'+
-    '<ellipse class="tip" rx="2.4" ry="2.1" fill="#f3e3c2"/>'+
-    '<g class="handG"><ellipse cx="-3" rx="10" ry="8" fill="url(#gSkin)" stroke="#7d4f33" stroke-width=".7"/>'+
-    '<path d="M-1 -6.5 q4 -1 6 1.5" fill="none" stroke="#8a5a3c" stroke-width=".7"/>'+
-    '<ellipse cx="5" cy="-5" rx="3.6" ry="2.4" fill="#cf9a75" stroke="#7d4f33" stroke-width=".5"/></g></g>';
+    '<line class="stick" stroke="#c99a5b" stroke-width="4.2" stroke-linecap="round"/>'+
+    '<line class="stickHi" stroke="#f2d9a6" stroke-width="1.3" stroke-linecap="round" opacity=".9"/>'+
+    '<ellipse class="tip" rx="2.6" ry="2.3" fill="#f3e3c2"/></g>';
 }
 
 // ---------------- state ----------------
@@ -292,16 +288,25 @@ function buildTimeline(){
   S.hands=assignHands(hits); resetPointers();
 }
 function assignHands(hits){
-  var L=[],R=[], last={L:-9,R:-9}, tomHand=null, tomT=-9, i=0;
-  function push(hand,h){ (hand==='L'?L:R).push({t:h.t,d:h.d}); last[hand]=h.t; if(h.d>=4&&h.d<=6){tomHand=hand;tomT=h.t;} }
+  var L=[],R=[], last={L:-9,R:-9}, runHand=null, runT=-9, i=0;
+  var isDrum=function(d){ return d===1 || (d>=4 && d<=6); };          // snare and toms: the hands' "run" instruments
+  var cymT=hits.filter(function(h){ return h.d===2||h.d===3||h.d===7; }).map(function(h){ return h.t; });
+  function cymNear(t){ for(var k=0;k<cymT.length;k++){ var d=cymT[k]-t; if(d>0.18) break; if(Math.abs(d)<=0.18 && Math.abs(d)>0.03) return true; } return false; }
+  function push(hand,h){ (hand==='L'?L:R).push({t:h.t,d:h.d}); last[hand]=h.t; if(isDrum(h.d)){ runHand=hand; runT=h.t; } }
   while(i<hits.length){
     var j=i, g=[], t=hits[i].t;
     while(j<hits.length && hits[j].t-t<0.03){ if(hits[j].d!==0) g.push(hits[j]); j++; }
     g.sort(function(a,b){return PRIO[a.d]-PRIO[b.d];});
     if(g.length===1){
       var h=g[0], hand=PREF[h.d];
-      if(h.d>=4&&h.d<=6 && t-tomT<0.35 && tomHand) hand = tomHand==='L'?'R':'L';
-      else { var other=hand==='L'?'R':'L'; if(t-last[hand]<0.085 && t-last[other]>t-last[hand]) hand=other; }
+      if(isDrum(h.d)){
+        if(t-runT<0.3 && runHand) hand = runHand==='L'?'R':'L';      // fills and rolls: alternate right-left
+        else hand = cymNear(t) ? 'L' : 'R';                            // groove: right keeps the hi-hat/ride, left plays the snare
+      } else {
+        var other=hand==='L'?'R':'L';
+        if(t-last[hand]<0.085 && t-last[other]>t-last[hand]) hand=other;
+        else if(hand==='R' && runHand==='R' && t-runT<0.12) hand='L';  // right hand is busy in a fill
+      }
       push(hand,h);
     } else if(g.length>=2){
       var a=g[0], b=g[1], ha=PREF[a.d], hb=PREF[b.d];
@@ -495,22 +500,13 @@ function handPose(k, v){
 }
 function drawHand(k, pose){
   var g=$('hand'+k), sh=HANDS[k].sh, tip=pose.pos, dx=tip[0]-sh[0], dy=tip[1]-sh[1], dist=Math.hypot(dx,dy)||1, ux=dx/dist, uy=dy/dist;
-  var gl=Math.max(22, dist-STICK), grip=[sh[0]+ux*gl, sh[1]+uy*gl];
-  // a raised stick is foreshortened toward the hand and its tip sits higher above its shadow
-  var f=1-0.3*pose.h, ptip=[grip[0]+(tip[0]-grip[0])*f, grip[1]+(tip[1]-grip[1])*f+pose.h*3];
-  var butt=[grip[0]-ux*11, grip[1]-uy*11];
-  // tapered sleeve from the shoulder (wide) to the wrist (narrow)
-  var nx=-uy, ny=ux, w0=8.5, w1=5, wr=[grip[0]-ux*6, grip[1]-uy*6];
-  g.querySelector('.arm').setAttribute('d','M'+(sh[0]+nx*w0)+' '+(sh[1]+ny*w0)+' L'+(wr[0]+nx*w1)+' '+(wr[1]+ny*w1)+
-    ' A'+w1+' '+w1+' 0 0 1 '+(wr[0]-nx*w1)+' '+(wr[1]-ny*w1)+' L'+(sh[0]-nx*w0)+' '+(sh[1]-ny*w0)+
-    ' A'+w0+' '+w0+' 0 0 1 '+(sh[0]+nx*w0)+' '+(sh[1]+ny*w0)+'Z');
-  g.querySelector('.armHi').setAttribute('d','M'+(sh[0]+nx*w0*0.45)+' '+(sh[1]+ny*w0*0.45)+' L'+(wr[0]+nx*w1*0.45)+' '+(wr[1]+ny*w1*0.45));
-  setLine(g.querySelector('.shadow'), [grip[0]+3,grip[1]+5], [tip[0]+2+pose.h*5,tip[1]+3+pose.h*8]);
+  // the stick points back toward the drummer; a raised stick looks shorter from above and its tip sits higher than its shadow
+  var len=STICK*(1-0.28*pose.h), butt=[tip[0]-ux*len, tip[1]-uy*len], ptip=[tip[0], tip[1]+pose.h*3-pose.h*6];
+  setLine(g.querySelector('.shadow'), [butt[0]+3,butt[1]+5], [tip[0]+2+pose.h*5, tip[1]+3+pose.h*8]);
   g.querySelector('.shadow').setAttribute('opacity', 0.45-0.25*pose.h);
   setLine(g.querySelector('.stick'), butt, ptip);
   setLine(g.querySelector('.stickHi'), [butt[0]-0.8,butt[1]-0.6], [ptip[0]-0.8,ptip[1]-0.6]);
   var t=g.querySelector('.tip'); t.setAttribute('cx',ptip[0]); t.setAttribute('cy',ptip[1]);
-  g.querySelector('.handG').setAttribute('transform','translate('+grip[0]+' '+grip[1]+') rotate('+(Math.atan2(uy,ux)*180/Math.PI)+')');
 }
 function setLine(el,a,b){ el.setAttribute('x1',a[0]); el.setAttribute('y1',a[1]); el.setAttribute('x2',b[0]); el.setAttribute('y2',b[1]); }
 function kickPress(v){

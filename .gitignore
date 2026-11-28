@@ -1,3 +1,5 @@
 test/*.wav
 test/*.wav.json
 test/*.png
+test/real*.json
+test/*.f32

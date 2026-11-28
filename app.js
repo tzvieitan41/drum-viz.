@@ -521,6 +521,8 @@ function render(v){
   var hatOpen=1-hatClosed(v);
   ORDER.forEach(function(id){
     var g=GEOM[id], arr=S.byEl[id]||[], i=adv('e'+id,arr,v), last=i>0?arr[i-1]:null, age=last?v-last.t:99;
+    var tapAge=g.tapT?performance.now()/1000-g.tapT:99;
+    if(tapAge<age || !(age>=0)){ age=tapAge; last=tapAge<99?{v:g.tapV}:null; }
     var dur=g.cym?0.75:0.4, a=age/dur, tr='', s=last?last.v:0;
     if(last && a<1 && age>=0){
       g.fl.setAttribute('opacity', (g.cym?0.75:0.65)*s*Math.exp(-age/(g.cym?0.2:0.08)));
@@ -569,6 +571,50 @@ setInterval(function(){
     'rate '+(d.sr||'-')+'  state '+(c?c.state:'-')+'  frame '+S.frameMs.toFixed(1)+'ms  sync '+S.syncMs+'ms\n'+
     'separation '+(S.sepOk?'yes':'no')+'  hits '+S.hits.length+'  '+ua.join(' ');
 }, 400);
+// ---------------- drum pads: tap a drum on the picture to play it ----------------
+var PADS=null;
+function noiseBuf(oac,len){ var b=oac.createBuffer(1,len,oac.sampleRate), d=b.getChannelData(0); for(var i=0;i<len;i++) d[i]=Math.random()*2-1; return b; }
+function renderPad(kind){
+  var SRp=44100, dur={kick:0.6,snare:0.45,hh:0.12,t1:0.8,t2:0.9,ft:1.1,ride:2.2,c1:2.8,c2:2.8}[kind], OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  var o=new OAC(1,Math.ceil(SRp*dur),SRp), out=o.createGain(); out.connect(o.destination);
+  function tone(f0,f1,tc,decay,gain){ var os=o.createOscillator(), g=o.createGain(); os.frequency.setValueAtTime(f0,0); os.frequency.exponentialRampToValueAtTime(f1,tc);
+    g.gain.setValueAtTime(0,0); g.gain.linearRampToValueAtTime(gain,0.002); g.gain.exponentialRampToValueAtTime(0.0005,decay); os.connect(g); g.connect(out); os.start(0); os.stop(dur); }
+  function hiss(type,freq,q,decay,gain){ var n=o.createBufferSource(); n.buffer=noiseBuf(o,Math.ceil(SRp*dur)); var f=o.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q;
+    var g=o.createGain(); g.gain.setValueAtTime(0,0); g.gain.linearRampToValueAtTime(gain,0.001); g.gain.exponentialRampToValueAtTime(0.0005,decay); n.connect(f); f.connect(g); g.connect(out); n.start(0); }
+  function metal(base,decay,gain){ [1,1.48,1.93,2.57,3.21,4.13].forEach(function(r){ var os=o.createOscillator(); os.type='square'; os.frequency.value=base*r;
+    var f=o.createBiquadFilter(); f.type='highpass'; f.frequency.value=6000; var g=o.createGain(); g.gain.setValueAtTime(gain,0); g.gain.exponentialRampToValueAtTime(0.0005,decay);
+    os.connect(f); f.connect(g); g.connect(out); os.start(0); os.stop(dur); }); }
+  if(kind==='kick'){ tone(140,45,0.08,0.45,1.0); hiss('lowpass',3000,0.7,0.01,0.25); }
+  else if(kind==='snare'){ tone(220,180,0.05,0.15,0.45); hiss('highpass',1500,0.7,0.22,0.6); }
+  else if(kind==='hh'){ metal(330,0.07,0.08); hiss('highpass',7000,0.8,0.06,0.35); }
+  else if(kind==='t1'){ tone(260,200,0.1,0.55,0.8); hiss('bandpass',2500,1,0.02,0.15); }
+  else if(kind==='t2'){ tone(190,145,0.1,0.65,0.8); hiss('bandpass',2200,1,0.02,0.15); }
+  else if(kind==='ft'){ tone(120,90,0.12,0.9,0.9); hiss('bandpass',1800,1,0.02,0.15); }
+  else if(kind==='ride'){ metal(420,1.8,0.05); hiss('highpass',8000,0.8,1.6,0.08); tone(1800,1750,0.5,1.2,0.04); }
+  else { metal(300,2.5,0.07); hiss('highpass',4500,0.6,2.4,0.3); }
+  return o.startRendering ? new Promise(function(res){ o.oncomplete=function(e){ res(e.renderedBuffer); }; var pr=o.startRendering(); if(pr&&pr.then) pr.then(res); }) : Promise.resolve(null);
+}
+function loadPads(){
+  if(PADS) return PADS;
+  var kinds=['kick','snare','hh','t1','t2','ft','ride','c1','c2'], bufs={};
+  PADS=Promise.all(kinds.map(function(k){ return renderPad(k).then(function(b){ bufs[k]=b; }); })).then(function(){ return bufs; });
+  return PADS;
+}
+var PAD_D={kick:0,snare:1,hh:2,t1:4,t2:5,ft:6,ride:7,c1:8,c2:9};
+function padAt(clientX, clientY){
+  var svg=$('kit'), pt=svg.createSVGPoint(); pt.x=clientX; pt.y=clientY; var p=pt.matrixTransform(svg.getScreenCTM().inverse());
+  var best=null, bd=1.15;
+  ORDER.slice().reverse().forEach(function(id){ var g=GEOM[id], d=Math.hypot((p.x-g.cx)/g.rx,(p.y-g.cy)/g.ry); if(d<bd){ bd=d; best=id; } });
+  return best;
+}
+function hitPad(id){
+  var c=ensureCtx(); if(c.state!=='running') c.resume();
+  var g=GEOM[id]; g.tapT=performance.now()/1000; g.tapV=0.9; showName(PAD_D[id]);
+  loadPads().then(function(b){ var buf=b[id]; if(!buf) return; var s=c.createBufferSource(), gn=c.createGain(); gn.gain.value=0.9; s.buffer=buf; s.connect(gn); gn.connect(c.destination); s.start(0); });
+}
+$('kit').addEventListener('pointerdown', function(e){
+  var id=padAt(e.clientX,e.clientY); if(!id) return; e.preventDefault(); hitPad(id);
+});
 buildKit(); clearTimeline(); paintRange(seekEl); requestAnimationFrame(loop);
 document.addEventListener('visibilitychange', function(){ if(!document.hidden && S.ctx && S.playing && S.ctx.state!=='running') S.ctx.resume(); });
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){

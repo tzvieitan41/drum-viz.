@@ -375,7 +375,7 @@ function classify(frames, spec, Sp, env){
     // kick: low-band attack that dies quickly (a sustained bass note rings much longer)
     var kick = low>0.35 && e.dec[0]<0.45 && (e.pm>=pmThr || (e.pm>=0.7*pmThr && low>0.9)) && !(tom && low<0.8*Math.max(lmid,mid));
     // on a separated drum track the snare's low body is no longer masked by the bass: a kick under a snare needs real low end
-    if(STEM && kick && snare && low < 1.3*lmid) kick=false;
+    if(STEM && kick && snare && low < 1.3*lmid && low < 0.6) kick=false;
     var cymbal = hi>0.1 && (hi>0.3 || hi>0.15*Math.max(low,lmid,mid)) && (!snare || hi>1.6*Math.max(mh,mid)) && !(tom && hi<0.5);
     if(!kick && !snare && !tom && !cymbal) return;
     var lowOnly = kick && !snare && !cymbal && !tom;

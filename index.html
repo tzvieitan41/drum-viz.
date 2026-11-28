@@ -148,7 +148,7 @@ self.onmessage = function(e){
   try{
     STEM = !!e.data.stem;
     var r = analyze(e.data.samples, e.data.sr);
-    self.postMessage({type:'done', hits:r.hits, bpm:r.bpm, debug:e.data.debug?{ev:self.__ev, frames:self.__frames}:null}); self.__ev=null;
+    self.postMessage({type:'done', hits:r.hits, bpm:r.bpm, onsets:r.onsets, debug:e.data.debug?{ev:self.__ev, frames:self.__frames}:null}); self.__ev=null;
   }catch(err){ self.postMessage({type:'error', message:String(err && err.stack || err)}); }
 };
 function progress(p){ self.postMessage({type:'progress', p:p}); }
@@ -167,7 +167,7 @@ function analyze(input, inSr){
   hits.sort(function(a,b){return a.t-b.t || a.d-b.d;});
   var out = hits.map(function(h){ return {t:Math.round(h.t*10000)/10000, d:h.d, v:Math.round(h.v*100)/100}; });
   progress(1);
-  return {hits:out, bpm:tempo.bpm};
+  return {hits:out, bpm:tempo.bpm, onsets:frames.map(function(f){return Math.round(f*HOP/SR*1000)/1000;})};
 }
 
 // ---------- resampling (fallback when OfflineAudioContext was unavailable) ----------

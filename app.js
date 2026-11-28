@@ -128,7 +128,7 @@ function loadFile(file){
       return toMono(stem).then(function(m){ return runWorker(m.data, m.sr, token, true, 0, 0.5); }).then(function(rs){
         if(token!==S.fileToken) return null;
         return toMono(buf).then(function(m){ return runWorker(m.data, m.sr, token, false, 0.5, 0.5); }).then(function(rm){
-          return rm && {hits:mergeHits(rs.hits, rm.hits), bpm:rs.bpm||rm.bpm};
+          return rm && {hits:mergeHits(rs.hits, rm.hits, rs.onsets||[]), bpm:rs.bpm||rm.bpm};
         });
       });
     }).then(function(res){
@@ -202,9 +202,10 @@ function separateDrums(buf, token){
 }
 // kick / snare / hi-hat from the drum track; toms and cymbals from the full song.
 // Where the full song hears a tom, a snare or kick the drum track placed at that moment is the same tom.
-function mergeHits(stemHits, mixHits){
+function mergeHits(stemHits, mixHits, stemOnsets){
   var near=function(arr,t,ds){ return arr.some(function(h){ return ds.indexOf(h.d)>=0 && Math.abs(h.t-t)<0.03; }); };
-  var toms=mixHits.filter(function(h){ return h.d>=4 && h.d<=6; });
+  // a tom from the full song counts only if the drum track also has an attack there (vocals and synths ring like toms)
+  var toms=mixHits.filter(function(h){ return h.d>=4 && h.d<=6 && stemOnsets.some(function(o){ return Math.abs(o-h.t)<0.04; }); });
   var out=stemHits.filter(function(h){
     if(h.d>=4) return false;
     if((h.d===1||h.d===0) && near(toms,h.t,[4,5,6]) && !near(mixHits,h.t,[h.d])) return false;

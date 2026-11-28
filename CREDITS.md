@@ -22,6 +22,13 @@ Please cite Stöter, Uhlich, Liutkus, Mitsufuji, “Open-Unmix — A Reference I
 - Licence: **MIT**. Copyright Microsoft. Commercial use is allowed.
 - Loaded only when a song is separated, not during service-worker install.
 
+## Drum sounds (tap to play)
+
+- Files: `sounds/*.wav` — trimmed, faded and level-matched copies of the Sonic Pi drum samples (`drum_bass_hard`, `drum_snare_hard`, `drum_cymbal_closed`, `drum_cymbal_open`, `drum_cymbal_pedal`, `drum_tom_hi_hard`, `drum_tom_mid_hard`, `drum_tom_lo_hard`, `drum_cymbal_soft`, `drum_cymbal_hard`, `drum_splash_hard`).
+- Source: [sonic-pi-net/sonic-pi](https://github.com/sonic-pi-net/sonic-pi), `etc/samples`. Originally recorded by menegass on freesound.org.
+- Licence: **CC0 1.0** (public domain). Commercial use: **allowed**. The Sonic Pi samples README is kept as `sounds/SONIC-PI-SAMPLES-README.md`.
+- The ride uses the soft crash recording played slower; the library has no ride cymbal.
+
 ## Drum kit picture
 
 `kit.jpg` is an AI-generated image supplied by the project owner. Manufacturer logos on the cymbals and drum heads were removed. A fully original rendering is planned before a commercial release.

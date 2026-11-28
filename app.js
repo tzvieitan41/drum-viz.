@@ -610,11 +610,36 @@ function renderPad(kind){
   else { metal(300,2.5,0.07); hiss('highpass',4500,0.6,2.4,0.3); }
   return o.startRendering ? new Promise(function(res){ o.oncomplete=function(e){ res(e.renderedBuffer); }; var pr=o.startRendering(); if(pr&&pr.then) pr.then(res); }) : Promise.resolve(null);
 }
+// Real drum recordings (Sonic Pi samples, CC0 public domain) — fetched early so the first tap is ready.
+// If a file can't be loaded, that drum falls back to the synthesized sound above.
+var PAD_KEYS=['kick','snare','hh','t1','t2','ft','ride','c1','c2'];
+var PAD_RAW={}; PAD_KEYS.forEach(function(k){ PAD_RAW[k]=fetch('sounds/'+k+'.wav').then(function(r){ return r.ok?r.arrayBuffer():null; }).catch(function(){ return null; }); });
+// how each drum sits in the mix: level, stereo position from the drummer's seat, pitch
+var PAD_MIX={kick:{g:1.0,p:0}, snare:{g:0.8,p:-0.12}, hh:{g:0.45,p:-0.45}, t1:{g:0.75,p:-0.15}, t2:{g:0.75,p:0.12},
+  ft:{g:0.85,p:0.4}, ride:{g:0.5,p:0.5,r:0.82}, c1:{g:0.55,p:-0.55}, c2:{g:0.5,p:0.6}};
 function loadPads(){
   if(PADS) return PADS;
-  var kinds=['kick','snare','hh','t1','t2','ft','ride','c1','c2'], bufs={};
-  PADS=Promise.all(kinds.map(function(k){ return renderPad(k).then(function(b){ bufs[k]=b; }); })).then(function(){ return bufs; });
+  var bufs={}; ensureCtx();
+  PADS=Promise.all(PAD_KEYS.map(function(k){
+    return PAD_RAW[k].then(function(ab){ return ab ? decode(ab.slice(0)) : null; }).catch(function(){ return null; })
+      .then(function(b){ return b || renderPad(k); }).then(function(b){ bufs[k]=b; });
+  })).then(function(){ return bufs; });
   return PADS;
+}
+// small room + gentle bus compression, the way a recorded kit is mixed
+function roomIR(c){
+  var len=Math.floor(c.sampleRate*0.6), b=c.createBuffer(2,len,c.sampleRate);
+  for(var ch=0;ch<2;ch++){ var d=b.getChannelData(ch); for(var i=0;i<len;i++){ var t=i/c.sampleRate; d[i]=t<0.006?0:(Math.random()*2-1)*Math.exp(-t/0.12)*0.5; } }
+  return b;
+}
+function padBus(){
+  if(S.padBus) return S.padBus;
+  var c=S.ctx, input=c.createGain(), dry=c.createGain(), wet=c.createGain(), comp=c.createDynamicsCompressor();
+  comp.threshold.value=-12; comp.knee.value=10; comp.ratio.value=3; comp.attack.value=0.003; comp.release.value=0.12;
+  dry.gain.value=1; wet.gain.value=0.16;
+  input.connect(dry); dry.connect(comp);
+  try{ var conv=c.createConvolver(); conv.buffer=roomIR(c); input.connect(conv); conv.connect(wet); wet.connect(comp); }catch(e){}
+  comp.connect(c.destination); S.padBus=input; return input;
 }
 var PAD_D={kick:0,snare:1,hh:2,t1:4,t2:5,ft:6,ride:7,c1:8,c2:9};
 function padAt(clientX, clientY){
@@ -626,7 +651,13 @@ function padAt(clientX, clientY){
 function hitPad(id){
   var c=ensureCtx();
   var g=GEOM[id]; g.tapT=performance.now()/1000; g.tapV=0.9; showName(PAD_D[id]);
-  loadPads().then(function(b){ var buf=b[id]; if(!buf || c.state!=='running') return; var s=c.createBufferSource(), gn=c.createGain(); gn.gain.value=0.9; s.buffer=buf; s.connect(gn); gn.connect(c.destination); s.start(0); });
+  loadPads().then(function(b){ var buf=b[id]; if(!buf || c.state!=='running') return;
+    var m=PAD_MIX[id]||{g:0.8,p:0}, src=c.createBufferSource(), gn=c.createGain(), out=gn;
+    src.buffer=buf; src.playbackRate.value=(m.r||1)*(1+(Math.random()-0.5)*0.015);   // tiny variation so repeats don't sound like a machine gun
+    gn.gain.value=m.g*(0.9+Math.random()*0.1);
+    src.connect(gn);
+    if(c.createStereoPanner){ var pn=c.createStereoPanner(); pn.pan.value=m.p; gn.connect(pn); out=pn; }
+    out.connect(padBus()); src.start(0); });
 }
 document.addEventListener('touchend', function(){ loadPads(); }, {once:true, passive:true});
 $('kit').addEventListener('pointerdown', function(e){

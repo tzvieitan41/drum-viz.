@@ -1,49 +1,24 @@
-const CACHE_NAME = 'instrument-viz-v5';
-const ASSETS = [
-  './',
-  './index.html',
-  './styles.css',
-  './app.js',
-  './analyzer.js',
-  './analyzer-worker.js',
-  './separator-worker.js',
-  './manifest.json',
-  './demo-beat.wav',
-  './icon-192.png',
-  './icon-512.png',
-  './apple-touch-icon.png'
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
-  self.skipWaiting();
+// Offline cache for the drum app. Network first (so updates arrive), cache as fallback.
+// The 35 MB separation model is cached by separator-worker.js itself (cache "drum-models-v1"), not here.
+const CACHE = 'drummer-v4';
+const ASSETS = ['./', './index.html', './app.js', './kit.jpg', './separator-worker.js',
+  './vendor/ort.wasm.min.js', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(
+    keys.filter(k => k !== CACHE && k !== 'drum-models-v1').map(k => caches.delete(k))
+  )).then(() => self.clients.claim()));
 });
-
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((res) => {
-          if (res && res.status === 200 && res.type === 'basic') {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin || url.pathname.includes('/models/')) return;
+  e.respondWith(
+    fetch(e.request).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+      return res;
+    }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./index.html')))
   );
 });

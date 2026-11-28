@@ -1,314 +1,473 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#0b0e1a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="רואים קצב">
-  <title>רואים קצב — הדמיית נגינה בזמן אמת</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="מתופף">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>מתופף וירטואלי</title>
+<style>
+:root{
+  --bg:#0c0e13; --panel:#161a23; --panel2:#1d2230; --line:#2a3142;
+  --text:#eceef4; --muted:#8e96aa; --accent:#f5a524; --accent2:#ffcf6b;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+body{padding:calc(env(safe-area-inset-top) + 6px) 14px calc(env(safe-area-inset-bottom) + 10px);display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px}
+#info{font-size:12.5px;color:var(--muted);white-space:nowrap}
+#stage{position:relative;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+#kit{display:block;width:100%;height:auto;aspect-ratio:412/284;max-height:47vh;margin:0 auto}
+#drumName{position:absolute;top:6px;right:0;left:0;text-align:center;pointer-events:none}
+#drumName span{display:inline-block;background:rgba(12,14,19,.72);border:1px solid rgba(245,165,36,.45);color:var(--accent2);
+  font-weight:700;font-size:17px;padding:5px 14px;border-radius:999px;min-width:96px;transition:opacity .3s}
+#drumName span.empty{opacity:0}
+#drumName span.pop{animation:pop .18s ease-out}
+@keyframes pop{0%{transform:scale(1.18)}100%{transform:scale(1)}}
+#overlay{position:absolute;inset:0;background:rgba(8,10,14,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:17px;font-weight:600}
+#overlay[hidden]{display:none}
+#cal{position:absolute;inset:0;background:rgba(8,10,14,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:17px;touch-action:none;z-index:3;text-align:center;padding:0 16px}
+#cal[hidden]{display:none}
+#calCount{font-size:28px;color:var(--accent2);font-variant-numeric:tabular-nums;direction:ltr}
+#calPulse{width:64px;height:64px;border-radius:50%;border:3px solid var(--accent);opacity:.35}
+#calPulse.on{animation:calp .25s ease-out}
+@keyframes calp{0%{transform:scale(1.35);opacity:1;background:rgba(245,165,36,.4)}100%{transform:scale(1);opacity:.35}}
+#calCancel{background:none;border:1px solid var(--line);color:var(--muted);border-radius:10px;font:inherit;font-size:14px;padding:6px 14px;margin-top:6px}
+.spinner{width:42px;height:42px;border-radius:50%;border:4px solid #2c3342;border-top-color:var(--accent);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#ovBar{width:60%;height:6px;background:#2a3040;border-radius:3px;overflow:hidden}
+#ovBar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.btn{appearance:none;border:0;border-radius:14px;background:var(--panel2);color:var(--text);font:inherit;font-weight:700;
+  min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;touch-action:manipulation}
+.btn:active{transform:scale(.97);filter:brightness(1.15)}
+.btn:disabled{opacity:.4}
+.file{position:relative;background:linear-gradient(180deg,#f7b443,#e39412);color:#1b1205;font-size:18px;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;font-size:0;cursor:pointer}
+.file svg{width:22px;height:22px}
+#fname{font-size:13px;color:var(--muted);text-align:center;min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress{display:flex;align-items:center;gap:10px;direction:ltr}
+.progress span{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);min-width:38px;text-align:center}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:34px;background:transparent;margin:0;direction:ltr;touch-action:none}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--accent) var(--p,0%),#2b3242 var(--p,0%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;margin-top:-9px;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+#sync::-webkit-slider-runnable-track{background:linear-gradient(90deg,#2b3242 var(--a,50%),var(--accent) var(--a,50%),var(--accent) var(--b,50%),#2b3242 var(--b,50%))}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:#2b3242}
+input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:0}
+.transport{display:flex;justify-content:center;align-items:center;gap:22px}
+.round{width:64px;height:64px;border-radius:50%;padding:0}
+.round.big{width:78px;height:78px;background:var(--accent);color:#1b1205}
+.round svg{width:28px;height:28px;fill:currentColor}
+.round.big svg{width:34px;height:34px}
+.listen{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+.listen[hidden]{display:none}
+.listen button{flex:1;min-height:40px;border:0;border-radius:10px;background:none;color:var(--muted);font:inherit;font-weight:700;font-size:14px}
+.listen button[aria-pressed="true"]{background:var(--panel2);color:var(--accent2)}
+.sync{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 14px 6px}
+.sync .row{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.sync output{font-variant-numeric:tabular-nums;color:var(--accent2);direction:ltr;unicode-bidi:isolate}
+.sync .row button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;font:inherit;font-size:12px;padding:4px 8px;margin-inline-start:8px}
+.hint{font-size:11.5px;color:var(--muted);text-align:center;margin-top:-2px}
+#msg{font-size:13px;color:#ff9d7a;text-align:center;min-height:0}
+#sync{width:100%}
+@media (max-height:700px){
+  .wrap{gap:7px} #kit{max-height:41vh} .btn{min-height:48px} .file{font-size:17px}
+  .round{width:56px;height:56px} .round.big{width:66px;height:66px} .round.big svg{width:30px;height:30px}
+  .sync{padding:6px 12px 4px} h1{font-size:17px} #fname{min-height:14px;font-size:12px}
+}
+#media{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;bottom:0;left:0}
+</style>
 </head>
 <body>
-  <div id="app" class="app-shell">
-    <main id="screen-picker" class="screen screen-active" aria-label="בחירת כלי נגינה">
-      <header class="hero">
-        <div class="brand-pill">
-          <span class="pulse-dot" aria-hidden="true"></span>
-          <span>רואים קצב · גרסת הדגמה</span>
-        </div>
-        <h1 class="hero-title">תשמע שיר, תבחר כלי,<br>ותראה בדיוק איך מנגנים אותו</h1>
-        <p class="hero-sub">הדמיה מלמעלה, מסונכרנת לקצב — מקובץ, מווידאו או מהמיקרופון.</p>
-      </header>
-      <section class="instrument-grid" aria-label="כלים זמינים">
-        <button id="pick-drums" class="inst-card inst-active" type="button">
-          <span class="inst-badge badge-ready">מוכן לנגינה</span>
-          <div class="inst-name">תופים</div>
-          <div class="inst-desc">מבט מלמעלה: בס, סנר, היי־האט, טמים ומצילות</div>
-        </button>
-        <button class="inst-card inst-soon" type="button" data-soon="סקסופון">
-          <span class="inst-badge badge-soon">בקרוב</span>
-          <div class="inst-name">סקסופון</div>
-          <div class="inst-desc">איזה אצבעות לחוצות ובאיזה סדר</div>
-        </button>
-        <button class="inst-card inst-soon" type="button" data-soon="גיטרה">
-          <span class="inst-badge badge-soon">בקרוב</span>
-          <div class="inst-name">גיטרה</div>
-          <div class="inst-desc">פריטה, מיקום אצבעות ואקורדים</div>
-        </button>
-        <button class="inst-card inst-soon" type="button" data-soon="פסנתר">
-          <span class="inst-badge badge-soon">בקרוב</span>
-          <div class="inst-name">פסנתר</div>
-          <div class="inst-desc">קלידים לחוצים בשתי ידיים</div>
-        </button>
-      </section>
-      <footer class="privacy-note">השמע מעובד מקומית במכשיר בלבד — בלי הרשמה ובלי שמירת מידע אישי.</footer>
-    </main>
+<div class="wrap">
+  <header><h1>מתופף וירטואלי</h1><div id="info"></div></header>
 
-    <main id="screen-stage" class="screen" aria-label="במת תופים" hidden>
-      <header class="stage-topbar">
-        <button id="btn-back" class="icon-btn" type="button" aria-label="חזרה לבחירת כלי">
-          <span aria-hidden="true">→</span><span>כלים</span>
-        </button>
-        <div id="status-pill" class="status-pill" aria-live="polite">
-          <span class="status-dot"></span>
-          <span id="status-text">מוכן — בחר מקור שמע</span>
-        </div>
-        <button id="btn-settings" class="icon-btn" type="button" aria-expanded="false" aria-controls="settings-panel">
-          <span>סנכרון</span>
-        </button>
-      </header>
-
-      <section id="settings-panel" class="settings-panel" hidden>
-        <div class="setting-row">
-          <label for="sensitivity-slider">רגישות זיהוי מכות: <strong id="sensitivity-val">1.0×</strong></label>
-          <input id="sensitivity-slider" type="range" min="0.6" max="1.8" step="0.1" value="1.0">
-        </div>
-        <div class="setting-row">
-          <label for="sync-slider">סנכרון: <strong id="sync-val">0 ms</strong></label>
-          <input id="sync-slider" dir="ltr" type="range" min="-200" max="200" step="10" value="0">
-        </div>
-        <p class="setting-hint">אם המכות מקדימות את מה ששומעים באוזניות, הזיזו שמאלה (מספר שלילי). אם הן מאחרות, הזיזו ימינה.</p>
-        <label class="toggle"><input id="drums-only" type="checkbox"> השמע רק את התופים</label>
-        <label class="toggle"><input id="quick-mode" type="checkbox"> מצב מהיר — בלי הפרדת תופים</label>
-      </section>
-
-      <div id="progress-wrap" class="progress-wrap" hidden>
-        <div id="progress-label">מפריד את התופים… 0%</div>
-        <div class="progress-track"><div id="progress-bar"></div></div>
-      </div>
-      <section class="stage-card">
-        <div class="stage-hud">
-          <div id="hit-pill" class="hit-pill" aria-live="off">ממתין לקצב…</div>
-          <div id="hit-counter" class="hit-counter">מכות: 0</div>
-        </div>
-        <div class="kit-wrap">
-          <svg id="drum-kit-svg" viewBox="0 0 1000 760" role="img" aria-label="מערכת תופים במבט מלמעלה">
-            <defs>
-              <radialGradient id="brass" cx="38%" cy="32%" r="75%">
-                <stop offset="0%" stop-color="#fff6d2"/>
-                <stop offset="28%" stop-color="#f0d078"/>
-                <stop offset="62%" stop-color="#d7a63a"/>
-                <stop offset="100%" stop-color="#8d6816"/>
-              </radialGradient>
-              <radialGradient id="brassDeep" cx="40%" cy="34%" r="75%">
-                <stop offset="0%" stop-color="#ffe7c4"/>
-                <stop offset="40%" stop-color="#e2b15a"/>
-                <stop offset="100%" stop-color="#8a5a18"/>
-              </radialGradient>
-              <radialGradient id="bell" cx="35%" cy="30%" r="70%">
-                <stop offset="0%" stop-color="#fffaf0"/>
-                <stop offset="55%" stop-color="#e7c56a"/>
-                <stop offset="100%" stop-color="#a67c22"/>
-              </radialGradient>
-              <radialGradient id="headCoat" cx="42%" cy="38%" r="68%">
-                <stop offset="0%" stop-color="#ffffff"/>
-                <stop offset="55%" stop-color="#f4f1ea"/>
-                <stop offset="100%" stop-color="#d9d3c6"/>
-              </radialGradient>
-              <radialGradient id="headClear" cx="40%" cy="36%" r="70%">
-                <stop offset="0%" stop-color="#f7f4ee"/>
-                <stop offset="70%" stop-color="#e7d7bc"/>
-                <stop offset="100%" stop-color="#c9b08a"/>
-              </radialGradient>
-              <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#ffffff"/>
-                <stop offset="35%" stop-color="#c5ccd4"/>
-                <stop offset="70%" stop-color="#8e98a3"/>
-                <stop offset="100%" stop-color="#f4f7fa"/>
-              </linearGradient>
-              <linearGradient id="pedal" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#f7f8fa"/>
-                <stop offset="40%" stop-color="#b7c0c8"/>
-                <stop offset="100%" stop-color="#6d767e"/>
-              </linearGradient>
-            </defs>
-            <rect width="1000" height="760" fill="#07080c"/>
-            
-            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
-              <line x1="175" y1="150" x2="175" y2="672"/>
-              <line x1="175" y1="660" x2="147" y2="700"/>
-              <line x1="175" y1="660" x2="203" y2="700"/>
-              <line x1="175" y1="660" x2="175" y2="700"/>
-            </g>
-            
-            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
-              <line x1="145" y1="390" x2="145" y2="612"/>
-              <line x1="145" y1="600" x2="117" y2="640"/>
-              <line x1="145" y1="600" x2="173" y2="640"/>
-              <line x1="145" y1="600" x2="145" y2="640"/>
-            </g>
-            
-            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
-              <line x1="700" y1="175" x2="700" y2="672"/>
-              <line x1="700" y1="660" x2="672" y2="700"/>
-              <line x1="700" y1="660" x2="728" y2="700"/>
-              <line x1="700" y1="660" x2="700" y2="700"/>
-            </g>
-            
-            <g stroke="#c5ccd6" stroke-width="3" fill="none" stroke-linecap="round">
-              <line x1="860" y1="200" x2="860" y2="672"/>
-              <line x1="860" y1="660" x2="832" y2="700"/>
-              <line x1="860" y1="660" x2="888" y2="700"/>
-              <line x1="860" y1="660" x2="860" y2="700"/>
-            </g>
-            
-            <g id="piece-crash">
-              <circle cx="175" cy="145" r="111" fill="rgba(0,0,0,0.35)"/>
-              <circle cx="175" cy="145" r="108" fill="url(#brass)" stroke="#5a4010" stroke-width="2.2"/>
-              <circle cx="175" cy="145" r="97.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="86.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="75.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="64.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="54.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="43.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="175" cy="145" r="32.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
-              <circle cx="175" cy="145" r="17.3" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.4"/>
-              <circle cx="175" cy="145" r="3.4" fill="#1a1a1a" stroke="#888" stroke-width="0.8"/>
-            </g>
-            
-            <g id="piece-ride">
-              <circle cx="690" cy="165" r="135" fill="rgba(0,0,0,0.35)"/>
-              <circle cx="690" cy="165" r="132" fill="url(#brass)" stroke="#5a4010" stroke-width="2.2"/>
-              <circle cx="690" cy="165" r="118.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="105.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="92.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="79.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="66.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="52.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="690" cy="165" r="39.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
-              <circle cx="690" cy="165" r="21.1" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.4"/>
-              <circle cx="690" cy="165" r="3.4" fill="#1a1a1a" stroke="#888" stroke-width="0.8"/>
-            </g>
-            
-            <g id="piece-crash2">
-              <circle cx="865" cy="195" r="115" fill="rgba(0,0,0,0.35)"/>
-              <circle cx="865" cy="195" r="112" fill="url(#brassDeep)" stroke="#5a4010" stroke-width="2.2"/>
-              <circle cx="865" cy="195" r="100.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="89.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="78.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="67.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="56.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="44.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="865" cy="195" r="33.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
-              <circle cx="865" cy="195" r="17.9" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.4"/>
-              <circle cx="865" cy="195" r="3.4" fill="#1a1a1a" stroke="#888" stroke-width="0.8"/>
-            </g>
-            
-            <g id="piece-tom-high">
-              <circle cx="400" cy="250" r="83" fill="#07080b"/>
-              <circle cx="400" cy="250" r="79" fill="none" stroke="url(#chrome)" stroke-width="5"/>
-              <circle cx="400" cy="250" r="74" fill="#101114"/>
-              <circle cx="400" cy="250" r="72" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
-              <circle cx="400" cy="250" r="44.6" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
-              <rect x="397.0" y="167.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 400.0 173.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="451.4" y="189.6" width="6" height="12" rx="1.4" transform="rotate(-45.0 454.4 195.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="474.0" y="244.0" width="6" height="12" rx="1.4" transform="rotate(0.0 477.0 250.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="451.4" y="298.4" width="6" height="12" rx="1.4" transform="rotate(45.0 454.4 304.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="397.0" y="321.0" width="6" height="12" rx="1.4" transform="rotate(90.0 400.0 327.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="342.6" y="298.4" width="6" height="12" rx="1.4" transform="rotate(135.0 345.6 304.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="320.0" y="244.0" width="6" height="12" rx="1.4" transform="rotate(180.0 323.0 250.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="342.6" y="189.6" width="6" height="12" rx="1.4" transform="rotate(225.0 345.6 195.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
-            </g>
-            
-            <g id="piece-tom-mid">
-              <circle cx="545" cy="242" r="93" fill="#07080b"/>
-              <circle cx="545" cy="242" r="89" fill="none" stroke="url(#chrome)" stroke-width="5"/>
-              <circle cx="545" cy="242" r="84" fill="#101114"/>
-              <circle cx="545" cy="242" r="82" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
-              <circle cx="545" cy="242" r="50.8" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
-              <rect x="542.0" y="149.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 545.0 155.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="603.5" y="174.5" width="6" height="12" rx="1.4" transform="rotate(-45.0 606.5 180.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="629.0" y="236.0" width="6" height="12" rx="1.4" transform="rotate(0.0 632.0 242.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="603.5" y="297.5" width="6" height="12" rx="1.4" transform="rotate(45.0 606.5 303.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="542.0" y="323.0" width="6" height="12" rx="1.4" transform="rotate(90.0 545.0 329.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="480.5" y="297.5" width="6" height="12" rx="1.4" transform="rotate(135.0 483.5 303.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="455.0" y="236.0" width="6" height="12" rx="1.4" transform="rotate(180.0 458.0 242.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="480.5" y="174.5" width="6" height="12" rx="1.4" transform="rotate(225.0 483.5 180.5)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
-            </g>
-            
-            <g id="piece-kick">
-              <circle cx="485" cy="430" r="119" fill="#07080b"/>
-              <circle cx="485" cy="430" r="115" fill="none" stroke="url(#chrome)" stroke-width="5"/>
-              <circle cx="485" cy="430" r="110" fill="#14161c"/>
-              <circle cx="485" cy="430" r="108" fill="url(#headClear)" stroke="#e4e7ee" stroke-width="2.4"/>
-              <circle cx="485" cy="430" r="67.0" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
-              <rect x="482.0" y="311.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 485.0 317.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="561.9" y="344.1" width="6" height="12" rx="1.4" transform="rotate(-45.0 564.9 350.1)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="595.0" y="424.0" width="6" height="12" rx="1.4" transform="rotate(0.0 598.0 430.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="561.9" y="503.9" width="6" height="12" rx="1.4" transform="rotate(45.0 564.9 509.9)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="482.0" y="537.0" width="6" height="12" rx="1.4" transform="rotate(90.0 485.0 543.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="402.1" y="503.9" width="6" height="12" rx="1.4" transform="rotate(135.0 405.1 509.9)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="369.0" y="424.0" width="6" height="12" rx="1.4" transform="rotate(180.0 372.0 430.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="402.1" y="344.1" width="6" height="12" rx="1.4" transform="rotate(225.0 405.1 350.1)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
-            </g>
-            
-            <g id="piece-floor">
-              <circle cx="770" cy="455" r="123" fill="#07080b"/>
-              <circle cx="770" cy="455" r="119" fill="none" stroke="url(#chrome)" stroke-width="5"/>
-              <circle cx="770" cy="455" r="114" fill="#101114"/>
-              <circle cx="770" cy="455" r="112" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
-              <circle cx="770" cy="455" r="69.4" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
-              <rect x="767.0" y="332.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 770.0 338.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="849.7" y="366.3" width="6" height="12" rx="1.4" transform="rotate(-45.0 852.7 372.3)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="884.0" y="449.0" width="6" height="12" rx="1.4" transform="rotate(0.0 887.0 455.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="849.7" y="531.7" width="6" height="12" rx="1.4" transform="rotate(45.0 852.7 537.7)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="767.0" y="566.0" width="6" height="12" rx="1.4" transform="rotate(90.0 770.0 572.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="684.3" y="531.7" width="6" height="12" rx="1.4" transform="rotate(135.0 687.3 537.7)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="650.0" y="449.0" width="6" height="12" rx="1.4" transform="rotate(180.0 653.0 455.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="684.3" y="366.3" width="6" height="12" rx="1.4" transform="rotate(225.0 687.3 372.3)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
-            </g>
-            
-            <g id="piece-snare">
-              <circle cx="315" cy="500" r="107" fill="#07080b"/>
-              <circle cx="315" cy="500" r="103" fill="none" stroke="url(#chrome)" stroke-width="5"/>
-              <circle cx="315" cy="500" r="98" fill="#101114"/>
-              <circle cx="315" cy="500" r="96" fill="url(#headCoat)" stroke="#e4e7ee" stroke-width="2.4"/>
-              <circle cx="315" cy="500" r="59.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.1"/>
-              <rect x="312.0" y="393.0" width="6" height="12" rx="1.4" transform="rotate(-90.0 315.0 399.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="383.4" y="422.6" width="6" height="12" rx="1.4" transform="rotate(-45.0 386.4 428.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="413.0" y="494.0" width="6" height="12" rx="1.4" transform="rotate(0.0 416.0 500.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="383.4" y="565.4" width="6" height="12" rx="1.4" transform="rotate(45.0 386.4 571.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="312.0" y="595.0" width="6" height="12" rx="1.4" transform="rotate(90.0 315.0 601.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="240.6" y="565.4" width="6" height="12" rx="1.4" transform="rotate(135.0 243.6 571.4)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="211.0" y="494.0" width="6" height="12" rx="1.4" transform="rotate(180.0 214.0 500.0)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/><rect x="240.6" y="422.6" width="6" height="12" rx="1.4" transform="rotate(225.0 243.6 428.6)" fill="url(#chrome)" stroke="#222" stroke-width="0.4"/>
-            </g>
-            <g id="piece-hat">
-              <circle cx="145" cy="395" r="84" fill="#9a7424" stroke="#3a2c0c" stroke-width="2"/>
-              <g id="hat-top">
-                <circle cx="145" cy="395" r="84" fill="url(#brass)" stroke="#5a4010" stroke-width="2.2"/>
-                <circle cx="145" cy="395" r="75.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="67.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="58.8" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="50.4" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="42.0" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="33.6" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/><circle cx="145" cy="395" r="25.2" fill="none" stroke="#6e5014" stroke-width="0.8" opacity="0.55"/>
-                <circle cx="145" cy="395" r="14" fill="url(#bell)" stroke="#3d2c08" stroke-width="1.2"/>
-                <circle cx="145" cy="395" r="3.2" fill="#1a1a1a"/>
-              </g>
-            </g>
-            <line x1="145" y1="479" x2="145" y2="590" stroke="#d5dbe3" stroke-width="4"/>
-            <g id="hat-pedal">
-              <rect x="118" y="588" width="54" height="16" rx="3" fill="url(#pedal)" stroke="#222" stroke-width="1"/>
-              <g id="foot-left">
-                <ellipse cx="145" cy="582" rx="34" ry="18" fill="#e7cbb3" stroke="#1c140e" stroke-width="2.4"/>
-                <ellipse cx="168" cy="570" rx="20" ry="12" fill="#2a2e33" stroke="#111" stroke-width="1.6"/>
-              </g>
-            </g>
-            <g id="kick-pedal">
-              <rect x="458" y="548" width="54" height="70" rx="6" fill="url(#pedal)" stroke="#222" stroke-width="1.2"/>
-              <path d="M470 568 h30 M470 584 h30 M470 600 h30" stroke="#4d555c" stroke-width="3"/>
-              <g id="foot-right">
-                <ellipse cx="485" cy="545" rx="36" ry="18" fill="#e7cbb3" stroke="#1c140e" stroke-width="2.4"/>
-                <ellipse cx="510" cy="532" rx="22" ry="12" fill="#2a2e33" stroke="#111" stroke-width="1.6"/>
-              </g>
-            </g>
-            <g id="throne">
-              <ellipse cx="500" cy="700" rx="78" ry="28" fill="#050506" stroke="#2a2d33" stroke-width="3"/>
-              <ellipse cx="500" cy="692" rx="62" ry="20" fill="#1a1c20" stroke="#3a3e46" stroke-width="2"/>
-            </g>
-            <g id="fx-layer" pointer-events="none"></g>
-            <g id="hand-left" pointer-events="none">
-              <line x1="8" y1="0" x2="92" y2="0" stroke="#f3e2b8" stroke-width="11" stroke-linecap="round"/>
-              <circle r="26" fill="#f0c7a8" stroke="#1c140e" stroke-width="3"/>
-              <circle cx="-6" cy="-8" r="4" fill="#e7b89a"/>
-            </g>
-            <g id="hand-right" pointer-events="none">
-              <line x1="8" y1="0" x2="92" y2="0" stroke="#f3e2b8" stroke-width="11" stroke-linecap="round"/>
-              <circle r="26" fill="#f3c9aa" stroke="#1c140e" stroke-width="3"/>
-              <circle cx="-6" cy="-8" r="4" fill="#e7b89a"/>
-            </g>
-          </svg>
-        </div>
-        <div class="meters-row" aria-label="עוצמת הכלים">
-          <div class="meter-item"><span class="meter-label">בס</span><div class="meter-track"><div id="meter-kick" class="meter-fill fill-kick"></div></div></div>
-          <div class="meter-item"><span class="meter-label">סנר</span><div class="meter-track"><div id="meter-snare" class="meter-fill fill-snare"></div></div></div>
-          <div class="meter-item"><span class="meter-label">היי-האט</span><div class="meter-track"><div id="meter-hat" class="meter-fill fill-hat"></div></div></div>
-          <div class="meter-item"><span class="meter-label">טמים</span><div class="meter-track"><div id="meter-tom" class="meter-fill fill-tom"></div></div></div>
-          <div class="meter-item"><span class="meter-label">מצילות</span><div class="meter-track"><div id="meter-cym" class="meter-fill fill-crash"></div></div></div>
-        </div>
-      </section>
-
-      <section id="player-bar" class="player-bar" hidden>
-        <button id="btn-play-pause" class="play-btn" type="button" aria-label="נגן או השהה">⏸</button>
-        <div class="player-meta">
-          <div class="player-title-row">
-            <span id="track-title" class="track-title">מקצב דמו</span>
-            <span id="track-time" class="track-time" dir="ltr">0:00 / 0:00</span>
-          </div>
-          <input id="seek-slider" class="seek-slider" dir="ltr" type="range" min="0" max="100" value="0" step="0.1" aria-label="מיקום בשיר">
-        </div>
-        <button id="btn-stop" class="stop-btn" type="button" aria-label="עצור">■</button>
-      </section>
-
-      <section class="controls-dock" aria-label="מקורות שמע">
-        <button id="btn-demo" class="src-btn src-demo" type="button">
-          <span class="src-icon" aria-hidden="true">🥁</span>
-          <span class="src-label">נגן מקצב דמו</span>
-        </button>
-        <label class="src-btn src-file" for="file-input">
-          <input id="file-input" type="file" accept=".mp3,.m4a,.aac,.wav,.ogg,.flac,.mp4,.mov,.m4v,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/*,video/mp4,video/quicktime,video/*" hidden>
-          <span class="src-icon" aria-hidden="true">🎵</span>
-          <span class="src-label">בחר שיר או וידאו</span>
-        </label>
-        <button id="btn-mic" class="src-btn src-mic" type="button">
-          <span class="src-icon" aria-hidden="true">🎙️</span>
-          <span id="mic-btn-label" class="src-label">האזן למיקרופון</span>
-        </button>
-      </section>
-      <footer class="privacy-note">השמע מעובד מקומית בדפדפן — שום הקלטה או מידע אישי לא נשמרים.</footer>
-    </main>
+  <div id="stage">
+    <svg id="kit" viewBox="74 2 412 284" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="מערכת תופים"></svg>
+    <div id="drumName"><span class="empty">—</span></div>
+    <div id="cal" hidden><div id="calPulse"></div><div id="calText">הקש על המסך בדיוק עם כל צליל</div><div id="calCount">0 / 16</div><button id="calCancel" type="button">ביטול</button></div>
+    <div id="overlay" hidden><div class="spinner"></div><div id="ovText">מנתח את השיר…</div><div id="ovBar"><i></i></div></div>
   </div>
-  <video id="fallback-media" playsinline webkit-playsinline hidden></video>
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script src="analyzer.js"></script>
-  <script src="app.js"></script>
+
+  <label class="btn file">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    בחר שיר או וידאו
+    <input type="file" id="file" accept=".mp3,.m4a,.aac,.wav,.mp4,.mov,.m4v,audio/*,video/*">
+  </label>
+  <div id="fname">לא נבחר קובץ</div>
+  <div id="msg"></div>
+
+  <div class="progress">
+    <span id="tCur">0:00</span>
+    <input type="range" id="seek" min="0" max="1000" value="0" step="1" disabled aria-label="מיקום בשיר">
+    <span id="tDur">0:00</span>
+  </div>
+
+  <div class="transport">
+    <button class="btn round" id="stopBtn" aria-label="עצור" disabled><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+    <button class="btn round big" id="playBtn" aria-label="נגן / השהה" disabled>
+      <svg id="icPlay" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+      <svg id="icPause" viewBox="0 0 24 24" style="display:none"><rect x="6" y="5" width="4.5" height="14" rx="1.2"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.2"/></svg>
+    </button>
+  </div>
+
+  <div id="listen" class="listen" role="group" aria-label="מה לשמוע" hidden>
+    <button type="button" data-mode="mix" aria-pressed="true">שיר מלא</button>
+    <button type="button" data-mode="drums" aria-pressed="false">רק תופים</button>
+    <button type="button" data-mode="rest" aria-pressed="false">בלי תופים</button>
+  </div>
+
+  <div class="sync">
+    <div class="row"><span>סנכרון</span><span><output id="syncVal">0 ms</output><button id="calBtn" type="button">כיול בהקשות</button><button id="syncReset" type="button">איפוס</button></span></div>
+    <input type="range" id="sync" min="-200" max="200" step="5" value="0" aria-label="סנכרון">
+    <div class="hint">ימינה = התופים מאחרים · באוזניות בלוטות׳ לחץ "כיול בהקשות"</div>
+  </div>
+</div>
+
+<video id="media" playsinline webkit-playsinline preload="auto"></video>
+
+<!-- ================= DSP WORKER (runs off the main thread) ================= -->
+<script id="dsp" type="text/plain">
+'use strict';
+var SR = 22050, N = 1024, HOP = 128, FPS = SR / HOP, STEM = false;
+// drum ids: 0 kick,1 snare,2 hh closed,3 hh open,4 tom high,5 tom mid,6 floor tom,7 ride,8 crash1,9 crash2
+var GROUPS = [[30,130],[130,350],[350,1500],[1500,5000],[5000,11025]]; // low,lmid,mid,mhigh,high
+self.onmessage = function(e){
+  try{
+    STEM = !!e.data.stem;
+    var r = analyze(e.data.samples, e.data.sr);
+    self.postMessage({type:'done', hits:r.hits, bpm:r.bpm, debug:e.data.debug?{ev:self.__ev, frames:self.__frames}:null}); self.__ev=null;
+  }catch(err){ self.postMessage({type:'error', message:String(err && err.stack || err)}); }
+};
+function progress(p){ self.postMessage({type:'progress', p:p}); }
+
+function analyze(input, inSr){
+  var x = Math.abs(inSr - SR) < 1 ? input : resample(input, inSr, SR);
+  progress(0.06);
+  var spec = stft(x);                 progress(0.45);
+  var Sp = hpss(spec);                progress(0.66);
+  var env = onsetEnvelopes(spec, Sp); progress(0.72);
+  var frames = detectEvents(env);     progress(0.76); self.__frames=frames;
+  var hits = classify(frames, spec, Sp, env); progress(0.82);
+  refineTimes(hits, x); hits=dedupe(hits); progress(0.88);
+  var tempo = beatTrack(env.odf);     progress(0.96);
+  snapToGrid(hits, tempo.beats);
+  hits.sort(function(a,b){return a.t-b.t || a.d-b.d;});
+  var out = hits.map(function(h){ return {t:Math.round(h.t*10000)/10000, d:h.d, v:Math.round(h.v*100)/100}; });
+  progress(1);
+  return {hits:out, bpm:tempo.bpm};
+}
+
+// ---------- resampling (fallback when OfflineAudioContext was unavailable) ----------
+function resample(x, srIn, srOut){
+  var ratio = srIn / srOut, fc = 0.45 * srOut / srIn, taps = 25, half = 12, h = new Float32Array(taps), s = 0, i;
+  for(i=0;i<taps;i++){ var n=i-half; var sinc = n===0 ? 2*fc : Math.sin(2*Math.PI*fc*n)/(Math.PI*n);
+    h[i] = sinc * (0.5-0.5*Math.cos(2*Math.PI*i/(taps-1))); s += h[i]; }
+  for(i=0;i<taps;i++) h[i]/=s;
+  var outLen = Math.floor(x.length/ratio), y = new Float32Array(outLen), L = x.length;
+  if(Math.abs(ratio-Math.round(ratio))<1e-9){ // integer ratio (44.1k -> 22.05k): plain decimation after the filter
+    var R=Math.round(ratio);
+    for(var q=0;q<outLen;q++){ var c0=q*R-half, acc=0;
+      if(c0>=0 && c0+taps<=L){ for(var kk=0;kk<taps;kk++) acc+=h[kk]*x[c0+kk]; }
+      else for(kk=0;kk<taps;kk++){ var ii=c0+kk; if(ii>=0&&ii<L) acc+=h[kk]*x[ii]; }
+      y[q]=acc; if((q & 262143)===0) progress(0.06*q/outLen); }
+    return y;
+  }
+  for(var j=0;j<outLen;j++){
+    var pos=j*ratio, i0=Math.floor(pos), fr=pos-i0, a=0, b=0;
+    for(var k=0;k<taps;k++){ var idx=i0+k-half; if(idx>=0&&idx<L) a+=h[k]*x[idx]; if(idx+1>=0&&idx+1<L) b+=h[k]*x[idx+1]; }
+    y[j] = a + (b-a)*fr;
+    if((j & 262143)===0) progress(0.06*j/outLen);
+  }
+  return y;
+}
+
+// ---------- FFT ----------
+function makeFFT(n){
+  var rev = new Uint32Array(n), bits = Math.round(Math.log2(n)), i;
+  for(i=0;i<n;i++){ var r=0, v=i; for(var b=0;b<bits;b++){ r=(r<<1)|(v&1); v>>=1; } rev[i]=r; }
+  var cs = new Float64Array(n/2), sn = new Float64Array(n/2);
+  for(i=0;i<n/2;i++){ cs[i]=Math.cos(2*Math.PI*i/n); sn[i]=Math.sin(2*Math.PI*i/n); }
+  return function(re, im){
+    for(var i=0;i<n;i++){ var j=rev[i]; if(j>i){ var t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+    for(var size=2; size<=n; size<<=1){
+      var hs=size>>1, step=n/size;
+      for(var s=0;s<n;s+=size){
+        for(var j2=s,k=0;j2<s+hs;j2++,k+=step){
+          var l=j2+hs, c=cs[k], si=sn[k];
+          var tr = re[l]*c + im[l]*si, ti = im[l]*c - re[l]*si;
+          re[l]=re[j2]-tr; im[l]=im[j2]-ti; re[j2]+=tr; im[j2]+=ti;
+        }
+      }
+    }
+  };
+}
+
+// ---------- STFT -> log-spaced band magnitudes ----------
+function stft(x){
+  var nF = Math.floor(x.length/HOP)+1, nBins = N/2, binHz = SR/N, i, b, k;
+  var edges = [], NBT = 96, fmin = 25, fmax = 11000;
+  for(i=0;i<=NBT;i++){ var f=fmin*Math.pow(fmax/fmin,i/NBT); var bi=Math.max(1,Math.min(nBins+1,Math.round(f/binHz)));
+    if(!edges.length || bi>edges[edges.length-1]) edges.push(bi); }
+  var NB = edges.length-1, bandOf = new Int16Array(nBins+1).fill(-1), bandHz = new Float32Array(NB);
+  for(b=0;b<NB;b++){ for(k=edges[b];k<edges[b+1]&&k<=nBins;k++) bandOf[k]=b; bandHz[b]=((edges[b]+edges[b+1]-1)/2)*binHz; }
+  var S = new Float32Array(nF*NB), win = new Float64Array(N);
+  for(i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+  var re=new Float64Array(N), im=new Float64Array(N), fft=makeFFT(N), accA=new Float64Array(NB), accB=new Float64Array(NB), XL=x.length;
+  for(var t=0;t<nF;t+=2){
+    var s0=t*HOP-N/2, s1=s0+HOP, two=(t+1<nF);
+    for(i=0;i<N;i++){ var a=s0+i, c=s1+i; re[i]=(a>=0&&a<XL)?x[a]*win[i]:0; im[i]=(two&&c>=0&&c<XL)?x[c]*win[i]:0; }
+    fft(re,im); accA.fill(0); accB.fill(0);
+    for(k=1;k<=nBins;k++){ b=bandOf[k]; if(b<0) continue; var nk=(N-k)&(N-1);
+      var ar=(re[k]+re[nk])*0.5, ai=(im[k]-im[nk])*0.5, br=(im[k]+im[nk])*0.5, bim=(re[nk]-re[k])*0.5;
+      accA[b]+=ar*ar+ai*ai; accB[b]+=br*br+bim*bim; }
+    var o=t*NB; for(b=0;b<NB;b++){ S[o+b]=Math.sqrt(accA[b]); if(two) S[o+NB+b]=Math.sqrt(accB[b]); }
+    if((t&2047)===0) progress(0.06+0.39*t/nF);
+  }
+  var groupOf = new Int8Array(NB).fill(-1);
+  for(b=0;b<NB;b++) for(var g=0;g<GROUPS.length;g++) if(bandHz[b]>=GROUPS[g][0]&&bandHz[b]<GROUPS[g][1]) groupOf[b]=g;
+  return {S:S, nF:nF, NB:NB, bandHz:bandHz, groupOf:groupOf};
+}
+
+function medianOf(buf, n){ // insertion sort (n is small)
+  for(var i=1;i<n;i++){ var v=buf[i], j=i-1; while(j>=0&&buf[j]>v){ buf[j+1]=buf[j]; j--; } buf[j+1]=v; }
+  return n&1 ? buf[n>>1] : 0.5*(buf[(n>>1)-1]+buf[n>>1]);
+}
+function percentile(arr, q){
+  var n=arr.length; if(!n) return 0; var c;
+  if(n>60000){ c=new Float32Array(60000); for(var i=0;i<60000;i++) c[i]=arr[(Math.random()*n)|0]; }
+  else c=Float32Array.from(arr);
+  c.sort(); return c[Math.min(c.length-1, Math.floor(q*(c.length-1)))];
+}
+
+// ---------- median-filter HPSS (harmonic = median along time, percussive = median along frequency) ----------
+function hpss(spec){
+  var S=spec.S, nF=spec.nF, NB=spec.NB, D=4, nd=Math.ceil(nF/D), t, b, j, k, n;
+  var Sd = new Float32Array(nd*NB);
+  for(t=0;t<nF;t++){ var o=t*NB, od=((t/D)|0)*NB; for(b=0;b<NB;b++) Sd[od+b]+=S[o+b]/D; }
+  var Hd = new Float32Array(nd*NB), LH=17, hh=8, buf=new Float32Array(LH);
+  for(b=0;b<NB;b++) for(j=0;j<nd;j++){ n=0; for(k=j-hh;k<=j+hh;k++) if(k>=0&&k<nd) buf[n++]=Sd[k*NB+b]; Hd[j*NB+b]=medianOf(buf,n); }
+  var Sp = new Float32Array(nF*NB), hp=4, pb=new Float32Array(9);
+  for(t=0;t<nF;t++){
+    var pos=(t+0.5)/D-0.5; if(pos<0) pos=0; var j0=Math.min(nd-1,Math.floor(pos)), j1=Math.min(nd-1,j0+1), fr=pos-j0, o2=t*NB;
+    for(b=0;b<NB;b++){
+      n=0; for(k=b-hp;k<=b+hp;k++) if(k>=0&&k<NB) pb[n++]=S[o2+k];
+      var P=medianOf(pb,n), Hh=Hd[j0*NB+b]*(1-fr)+Hd[j1*NB+b]*fr, P2=P*P, H2=4*Hh*Hh; // margin 2
+      Sp[o2+b] = S[o2+b]*P2/(P2+H2+1e-20);
+    }
+    if((t&4095)===0) progress(0.45+0.21*t/nF);
+  }
+  return Sp;
+}
+
+// ---------- onset envelopes per band group ----------
+function onsetEnvelopes(spec, Sp){
+  var nF=spec.nF, NB=spec.NB, gOf=spec.groupOf, G=GROUPS.length, t, b, g;
+  var ref = percentile(Sp, 0.995) || 1e-9, L = new Float32Array(nF*NB);
+  for(var i=0;i<L.length;i++) L[i]=Math.log1p(100*Sp[i]/ref);
+  var cnt=new Float32Array(G); for(b=0;b<NB;b++) if(gOf[b]>=0) cnt[gOf[b]]++;
+  var flux=[]; for(g=0;g<G;g++) flux.push(new Float32Array(nF));
+  for(t=2;t<nF;t++){ var o=t*NB, p=(t-2)*NB;
+    for(b=0;b<NB;b++){ g=gOf[b]; if(g<0) continue; var d=L[o+b]-L[p+b]; if(d>0) flux[g][t]+=d; } }
+  var W=[1.3,0.8,0.8,1.0,1.0], odf=new Float32Array(nF), ws=0;
+  for(g=0;g<G;g++){ var f=flux[g]; for(t=0;t<nF;t++) f[t]/=Math.max(1,cnt[g]);
+    var nrm = percentile(f, 0.99) || 1; for(t=0;t<nF;t++) f[t]/=nrm; ws+=W[g]; }
+  for(t=0;t<nF;t++){ var s=0; for(g=0;g<G;g++) s+=W[g]*flux[g][t]; odf[t]=s/ws; }
+  var sm=new Float32Array(nF); for(t=1;t<nF-1;t++) sm[t]=0.25*odf[t-1]+0.5*odf[t]+0.25*odf[t+1];
+  var nO = percentile(sm, 0.99) || 1; for(t=0;t<nF;t++) sm[t]/=nO;
+  // energy per group from the ORIGINAL spectrogram (used for decay / ring time)
+  var E=[]; for(g=0;g<G;g++) E.push(new Float32Array(nF));
+  for(t=0;t<nF;t++){ var o3=t*NB; for(b=0;b<NB;b++){ g=gOf[b]; if(g>=0){ var v=spec.S[o3+b]; E[g][t]+=v*v; } } }
+  return {flux:flux, odf:sm, E:E};
+}
+
+// ---------- adaptive-threshold peak picking ----------
+function pickPeaks(env, delta, k, w, mw){
+  var n=env.length, pre=new Float64Array(n+1), out=[], t, j;
+  for(t=0;t<n;t++) pre[t+1]=pre[t]+env[t];
+  for(t=1;t<n-1;t++){
+    var v=env[t]; if(v<delta) continue; var ok=true;
+    for(j=t-w;j<=t+w;j++){ if(j<0||j>=n||j===t) continue; if(env[j]>v||(j<t&&env[j]===v)){ok=false;break;} }
+    if(!ok) continue;
+    var a=Math.max(0,t-mw), c=Math.min(n,t+mw+1), mean=(pre[c]-pre[a])/(c-a);
+    if(v >= delta + k*mean) out.push(t);
+  }
+  return out;
+}
+function detectEvents(env){
+  var odf=env.odf, main=pickPeaks(odf,0.07,1.1,4,20), extra=[], MG=8;
+  [3,4].forEach(function(g){ extra=extra.concat(pickPeaks(env.flux[g],0.22,1.4,4,20)); });
+  var all=main.map(function(t){return {t:t,s:odf[t],m:1};});
+  extra.forEach(function(t){ all.push({t:t,s:odf[t]*0.9,m:0}); });
+  all.sort(function(a,b){return a.t-b.t;});
+  var res=[];
+  for(var i=0;i<all.length;i++){ var e=all[i], last=res[res.length-1];
+    if(last && e.t-last.t<MG){ if(e.m>last.m || (e.m===last.m && e.s>last.s)) res[res.length-1]=e; }
+    else res.push(e); }
+  return res.map(function(e){return e.t;});
+}
+
+// ---------- classification by spectrum + ring time ----------
+function classify(frames, spec, Sp, env){
+  var nF=spec.nF, NB=spec.NB, G=GROUPS.length, flux=env.flux, E=env.E, ev=[], i, g, t, k;
+  function fmax(arr,a,b){ var m=0; for(var k=Math.max(0,a);k<=Math.min(nF-1,b);k++) if(arr[k]>m) m=arr[k]; return m; }
+  function fmean(arr,a,b){ var s=0,n=0; for(var k=Math.max(0,a);k<=Math.min(nF-1,b);k++){s+=arr[k];n++;} return n?s/n:0; }
+  function minv(arr,a,b){ var m=Infinity; for(var k=Math.max(0,a);k<=Math.min(nF-1,b);k++) if(arr[k]<m) m=arr[k]; return isFinite(m)?m:0; }
+  for(i=0;i<frames.length;i++){
+    t=frames[i]; var nextT = i+1<frames.length ? frames[i+1] : nF+400;
+    var f=[]; for(g=0;g<G;g++) f.push(fmax(flux[g],t-2,t+3));
+    // decay with background subtracted (low groups) at ~150 ms
+    var dec=[], d150=Math.round(0.15*FPS);
+    for(g=0;g<G;g++){ var pre=minv(E[g],t-10,t-3), pk=fmax(E[g],t,t+6);
+      var later=fmean(E[g],t+d150-3,t+d150+3); dec.push(pk>pre? Math.max(0,Math.min(1,(later-pre)/(pk-pre))) : 0); }
+    // cymbal ring: early decay (60 ms after the high-band peak) + time constant measured before the next hit
+    var pkI=t, pkH=0; for(k=t;k<=Math.min(nF-1,t+5);k++) if(E[4][k]>pkH){pkH=E[4][k];pkI=k;}
+    var d60=Math.round(0.06*FPS), r60=pkH>0? fmean(E[4],pkI+d60-1,pkI+d60+1)/pkH : 0;
+    var dd=Math.max(d60, Math.min(Math.round(0.35*FPS), nextT-pkI-7));
+    var ratio=Math.max(1e-4,Math.min(0.9999,pkH>0?fmean(E[4],pkI+dd-1,pkI+dd+1)/pkH:0));
+    var tau=(dd/FPS)/(-Math.log(ratio));
+    // dominant low pitch of the percussive increase (for toms)
+    var bestB=-1, bestV=0;
+    for(var b=0;b<NB;b++){ var hz=spec.bandHz[b]; if(hz<55||hz>420) continue;
+      var a=0,n=0; for(var k=t-8;k<=t-3;k++){ if(k>=0){a+=Sp[k*NB+b];n++;} } a=n?a/n:0;
+      var m=0; for(k=t;k<=Math.min(nF-1,t+5);k++) if(Sp[k*NB+b]>m) m=Sp[k*NB+b];
+      var inc=(m-a)*Math.sqrt(hz); if(inc>bestV){bestV=inc;bestB=b;} }
+    var pitch = bestB>=0 ? spec.bandHz[bestB] : 0, tgrp = pitch<130?0:1;
+    // how percussive is the low band at the attack (bass-note changes leak a little, real kicks are mostly percussive)
+    var sp0=0, s0=0; for(k=t;k<=Math.min(nF-1,t+4);k++) for(b=0;b<NB;b++) if(spec.groupOf[b]===0){ sp0+=Sp[k*NB+b]; s0+=spec.S[k*NB+b]; }
+    var pm = s0>0 ? sp0/s0 : 0;
+    ev.push({t:t, f:f, dec:dec, tau:tau, r60:r60, pm:pm, pitch:pitch, toneDec:dec[tgrp], gapS:(nextT-t)/FPS});
+  }
+  self.__ev = ev;
+  var norm=[]; for(g=0;g<G;g++){ var vals=ev.map(function(e){return e.f[g];}); var p=percentile(vals,0.9), mx=percentile(vals,1);
+    norm.push(Math.max(p, 0.25*mx, 0.02)); }
+  ev.forEach(function(e){ e.r=e.f.map(function(v,g){return v/norm[g];}); });
+
+  // adaptive threshold for "how percussive is the low band" (kick vs. bass-note change)
+  var strongPm=ev.filter(function(e){return e.r[0]>0.7&&e.dec[0]<0.45;}).map(function(e){return e.pm;}).sort(function(a,b){return a-b;});
+  var pmThr = strongPm.length>=4 ? Math.min(0.27, 0.65*strongPm[strongPm.length>>1]) : 0.2;
+  // first pass: decide what kind of sound
+  var hits=[], toms=[], cymIdx=[];
+  ev.forEach(function(e){
+    var r=e.r, low=r[0], lmid=r[1], mid=r[2], mh=r[3], hi=r[4], tS=e.t*HOP/SR, ring=Math.max(e.dec[0],e.dec[1]);
+    // snare: body (350-1500 Hz) + wires (1.5-5 kHz), not a ringing crash
+    var snare = mh>0.5 && mid>0.4 && mh>0.7*hi && !(e.dec[4]>0.5 && mh<hi);
+    // tom: tonal low/mid body that rings, little wire noise
+    var tom = !snare && mid>0.45 && mh<0.5*mid && ring>0.35 && e.pitch>0;
+    // kick: low-band attack that dies quickly (a sustained bass note rings much longer)
+    var kick = low>0.35 && e.dec[0]<0.45 && (e.pm>=pmThr || (e.pm>=0.7*pmThr && low>0.9)) && !(tom && low<0.8*Math.max(lmid,mid));
+    // on a separated drum track the snare's low body is no longer masked by the bass: a kick under a snare needs real low end
+    if(STEM && kick && snare && low < 1.3*lmid) kick=false;
+    var cymbal = hi>0.1 && (hi>0.3 || hi>0.15*Math.max(low,lmid,mid)) && (!snare || hi>1.6*Math.max(mh,mid)) && !(tom && hi<0.5);
+    if(!kick && !snare && !tom && !cymbal) return;
+    var lowOnly = kick && !snare && !cymbal && !tom;
+    if(kick) hits.push({t:tS, d:0, v:vel(low), lp:lowOnly});
+    if(snare) hits.push({t:tS, d:1, v:vel(Math.max(mid,mh)), lp:false});
+    if(tom){ var h={t:tS, d:5, v:vel(Math.max(lmid,mid,low)), lp:false, pitch:e.pitch}; hits.push(h); toms.push(h); }
+    if(cymbal){ var c={t:tS, d:2, v:vel(hi), lp:false, tau:e.tau, r60:e.r60, hi:hi, ring:e.dec[4]}; hits.push(c); cymIdx.push(c); }
+  });
+  // toms -> high / mid / floor by relative pitch
+  if(toms.length){
+    var ps=toms.map(function(h){return Math.log(h.pitch);}).sort(function(a,b){return a-b;});
+    var p10=ps[Math.floor(0.1*(ps.length-1))], p90=ps[Math.floor(0.9*(ps.length-1))];
+    toms.forEach(function(h){ var lp=Math.log(h.pitch), cls;
+      if(toms.length>=6 && p90-p10>Math.log(1.3)){ var u=(lp-p10)/(p90-p10); cls = u<0.34?6:(u<0.67?5:4); }
+      else cls = h.pitch<145?6:(h.pitch<215?5:4);
+      h.d=cls; });
+  }
+  // cymbals -> closed hat / open hat / ride / crash by ring time
+  var bright=[];
+  cymIdx.forEach(function(c){
+    // the separation model smears ~90 ms of sound, so on its drum track a closed hi-hat looks longer
+    if(STEM ? (c.r60<0.45 && c.tau<0.2) : (c.r60<0.2 && c.tau<0.12)) c.d=2;            // closed hi-hat
+    else if(c.tau<0.3) c.d=3;                      // open hi-hat: rings a bit
+    else if(c.hi>0.55 && c.ring>0.5) { c.d=8; bright.push(c); }   // crash: loud and keeps ringing
+    else c.d=7;                                    // ride
+  });
+  // alternate crashes between the two crash cymbals for long crash passages
+  bright.forEach(function(c,i){ if(i>0 && c.t-bright[i-1].t<0.6 && bright[i-1].d===8) c.d=9; });
+  return hits;
+}
+function vel(r){ return Math.max(0.2, Math.min(1, 0.25+0.6*r)); }
+
+// ---------- move each onset back to the start of its attack (time domain, ~1 ms) ----------
+function refineTimes(hits, x){
+  var byT={}; hits.forEach(function(h){ var k=Math.round(h.t*1000); (byT[k]=byT[k]||[]).push(h); });
+  Object.keys(byT).forEach(function(k){
+    var g=byT[k], lp=g.every(function(h){return h.lp;}), t0=g[0].t, nt=refineOnset(x,t0,lp);
+    g.forEach(function(h){ h.t=nt; delete h.lp; delete h.tau; delete h.hi; delete h.r60; delete h.ring; delete h.pitch; });
+  });
+}
+function refineOnset(x, t0, lowpass){
+  // power envelope of a filtered copy; low-passed (kick) needs a longer window than the pre-emphasised one
+  var c=Math.round(t0*SR), a=c-Math.round(0.08*SR), z=c+Math.round(0.06*SR), STEP=11, WIN=lowpass?110:33, i, k;
+  var start=Math.max(0,a-900), end=Math.min(x.length,z+WIN); if(end-start<WIN*4) return t0;
+  var y=new Float32Array(end-start);
+  if(lowpass){ var al=1-Math.exp(-2*Math.PI*200/SR), s1=0, s2=0;
+    for(i=0;i<y.length;i++){ s1+=al*(x[start+i]-s1); s2+=al*(s1-s2); y[i]=s2; } }
+  else { for(i=1;i<y.length;i++) y[i]=x[start+i]-0.97*x[start+i-1]; }
+  var env=[], pos=[];
+  for(var p=Math.max(a,start); p+WIN<=end && p<=z; p+=STEP){ var e=0; for(k=0;k<WIN;k++){ var v=y[p-start+k]; e+=v*v; } env.push(e/WIN); pos.push(p+WIN/2); }
+  var pk=-1, pv=-1, lo=c-0.045*SR, hi=c+0.05*SR;
+  for(i=0;i<env.length;i++) if(pos[i]>=lo&&pos[i]<=hi&&env[i]>pv){pv=env[i];pk=i;}
+  if(pk<1) return t0;
+  // walk back from the energy peak to where the attack starts (rise above 15% of the jump in power)
+  var pre=Infinity; for(i=0;i<pk;i++){ var dt=pos[pk]-pos[i]; if(dt<0.05*SR && dt>0.003*SR && env[i]<pre) pre=env[i]; }
+  if(!isFinite(pre)) pre=0;
+  var thr=pre+0.15*(pv-pre); i=pk;
+  while(i>0 && env[i-1]>thr && pos[pk]-pos[i-1]<0.045*SR) i--;
+  var ts=pos[i];
+  if(i>0){ var e0=env[i-1], e1=env[i]; if(e1>e0) ts=pos[i-1]+(thr-e0)/(e1-e0)*(pos[i]-pos[i-1]); }
+  ts += 0.35*WIN;          // a centred window crosses the threshold ~0.35 window-lengths before the true start
+  var nt=ts/SR; if(nt<t0-0.06||nt>t0+0.05) return t0; return Math.max(0,nt);
+}
+function dedupe(hits){
+  hits.sort(function(a,b){return a.d-b.d || a.t-b.t;});
+  var out=[]; hits.forEach(function(h){ var l=out[out.length-1]; if(l && l.d===h.d && h.t-l.t<0.04){ if(h.v>l.v) l.v=h.v; } else out.push(h); });
+  return out;
+}
+
+// ---------- tempo (autocorrelation) + beat tracking (dynamic programming) ----------
+function beatTrack(odf){
+  var n=odf.length, i, m=0; if(n<FPS*4) return {bpm:0, beats:[]};
+  for(i=0;i<n;i++) m+=odf[i]; m/=n;
+  var o=new Float32Array(n), sd=0; for(i=0;i<n;i++){ o[i]=odf[i]-m; sd+=o[i]*o[i]; } sd=Math.sqrt(sd/n)||1;
+  var minLag=Math.floor(60/210*FPS), maxLag=Math.ceil(60/55*FPS), ac=new Float64Array(maxLag+2), best=-Infinity, bl=0, lag;
+  for(lag=minLag-1;lag<=maxLag+1;lag++){ var s=0; for(i=0;i+lag<n;i++) s+=o[i]*o[i+lag]; ac[lag]=s/(n-lag); }
+  for(lag=minLag;lag<=maxLag;lag++){ var bpm=60*FPS/lag, w=Math.exp(-0.5*Math.pow(Math.log2(bpm/118)/0.9,2)), sc=ac[lag]*w; if(sc>best){best=sc;bl=lag;} }
+  var y0=ac[bl-1], y1=ac[bl], y2=ac[bl+1], den=y0-2*y1+y2, P=bl+(den<0?0.5*(y0-y2)/den:0);
+  var loc=new Float32Array(n); for(i=0;i<n;i++) loc[i]=o[i]/sd;
+  var cum=new Float64Array(n), back=new Int32Array(n).fill(-1), lo=Math.round(P/2), hi=Math.round(2*P), alpha=100;
+  for(var t=0;t<n;t++){ var bv=-Infinity, bi=-1;
+    for(var p=Math.max(0,t-hi); p<=t-lo; p++){ var d=Math.log((t-p)/P), v=cum[p]-alpha*d*d; if(v>bv){bv=v;bi=p;} }
+    cum[t]=loc[t]+(bi>=0?bv:0); back[t]=bi; }
+  var end=n-1, bm=-Infinity; for(i=Math.max(0,n-Math.round(2*P)); i<n; i++) if(cum[i]>bm){bm=cum[i];end=i;}
+  var beats=[]; for(i=end;i>=0;i=back[i]) beats.push(i*HOP/SR); beats.reverse();
+  return {bpm:Math.round(600*FPS/P)/10, beats:beats};
+}
+function snapToGrid(hits, beats){
+  if(beats.length<4||!hits.length) return;
+  var grid=[], i;
+  for(i=0;i<beats.length-1;i++){ var a=beats[i], b=beats[i+1]; if(b-a>1.5) continue; for(var q=0;q<4;q++) grid.push(a+(b-a)*q/4); }
+  grid.push(beats[beats.length-1]);
+  function nearest(t){ var l=0,h=grid.length-1; while(h-l>1){ var m=(l+h)>>1; if(grid[m]<t) l=m; else h=m; } return Math.abs(grid[l]-t)<Math.abs(grid[h]-t)?grid[l]:grid[h]; }
+  var res=[]; hits.forEach(function(hh){ var r=hh.t-nearest(hh.t); if(Math.abs(r)<0.035) res.push(r); });
+  if(res.length<8) return;
+  res.sort(function(a,b){return a-b;}); var shift=res[res.length>>1];   // grid comes from frame peaks; align it to the attack starts
+  hits.forEach(function(hh){ var g=nearest(hh.t-shift)+shift, r=g-hh.t; if(Math.abs(r)<0.015) hh.t+=0.5*r; });
+}
+</script>
+
+<!-- ================= APP ================= -->
+<script src="app.js"></script>
 </body>
 </html>

@@ -22,6 +22,10 @@ Please cite Stöter, Uhlich, Liutkus, Mitsufuji, “Open-Unmix — A Reference I
 - Licence: **MIT**. Copyright Microsoft. Commercial use is allowed.
 - Loaded only when a song is separated, not during service-worker install.
 
-## App audio
+## Drum kit picture
 
-The built-in `demo-beat.wav` is synthesized for this project (no sampled recording). Accuracy notes in development used Kevin MacLeod’s “Noise Attack” (incompetech.com), CC BY 3.0, which is not bundled in the repository.
+`kit.jpg` is an AI-generated image supplied by the project owner. Manufacturer logos on the cymbals and drum heads were removed. A fully original rendering is planned before a commercial release.
+
+## Test audio
+
+The test songs in `test/` are synthesized by `test/synth.js` (no sampled recordings).

@@ -77,12 +77,28 @@ window.__drum = S;
 
 function ensureCtx(){
   if(!S.ctx){
+    // tell iOS this is media playback, so the ring/silent switch does not mute it (must be set before audio starts)
+    try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
     var AC = window.AudioContext || window.webkitAudioContext;
     try{ S.ctx = new AC({latencyHint:'interactive'}); }catch(e){ S.ctx = new AC(); }
-    try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
   }
   return S.ctx;
 }
+// iOS only lets a page start sound from a completed tap (touchend / click), not from touchstart or pointerdown.
+// On every such tap: resume the audio context and play one silent sample, which unlocks it for good.
+function unlockAudio(){
+  var c=ensureCtx();
+  if(c.state!=='running'){ try{ c.resume(); }catch(e){} }
+  if(!S.unlocked){
+    try{ var b=c.createBuffer(1,1,22050), src=c.createBufferSource(); src.buffer=b; src.connect(c.destination); src.start(0); S.unlocked=true; }catch(e){}
+  }
+  setTimeout(soundHint, 300);
+}
+function soundHint(){
+  var off = S.ctx && S.ctx.state!=='running';
+  $('soundHint').hidden = !off;
+}
+['touchend','click','keydown'].forEach(function(t){ document.addEventListener(t, unlockAudio, {capture:true, passive:true}); });
 function setMsg(t){ $('msg').textContent = t||''; }
 function overlay(show, text, p){
   $('overlay').hidden=!show; if(text) $('ovText').textContent=text;
@@ -608,10 +624,11 @@ function padAt(clientX, clientY){
   return best;
 }
 function hitPad(id){
-  var c=ensureCtx(); if(c.state!=='running') c.resume();
+  var c=ensureCtx();
   var g=GEOM[id]; g.tapT=performance.now()/1000; g.tapV=0.9; showName(PAD_D[id]);
-  loadPads().then(function(b){ var buf=b[id]; if(!buf) return; var s=c.createBufferSource(), gn=c.createGain(); gn.gain.value=0.9; s.buffer=buf; s.connect(gn); gn.connect(c.destination); s.start(0); });
+  loadPads().then(function(b){ var buf=b[id]; if(!buf || c.state!=='running') return; var s=c.createBufferSource(), gn=c.createGain(); gn.gain.value=0.9; s.buffer=buf; s.connect(gn); gn.connect(c.destination); s.start(0); });
 }
+document.addEventListener('touchend', function(){ loadPads(); }, {once:true, passive:true});
 $('kit').addEventListener('pointerdown', function(e){
   var id=padAt(e.clientX,e.clientY); if(!id) return; e.preventDefault(); hitPad(id);
 });
